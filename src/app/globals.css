@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light — kiểu bảng giá web CK (nền sáng, xanh/đỏ rõ) */
+:root {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #cbd5e1;
+  --muted: #64748b;
+  --text: #0f172a;
+  --accent: #2563eb;
+  --up: #15803d;
+  --up-bg: #dcfce7;
+  --down: #b91c1c;
+  --down-bg: #fee2e2;
+  --header-h: 42px;
+}
+
+.dark {
+  --bg: #0a0e14;
+  --surface: #11161d;
+  --surface-2: #0d1218;
+  --border: #2a3340;
+  --muted: #8b97ab;
+  --text: #e8edf4;
+  --accent: #3b82f6;
+  --up: #4ade80;
+  --up-bg: rgba(22, 163, 74, 0.15);
+  --down: #f87171;
+  --down-bg: rgba(220, 38, 38, 0.15);
+}
+
+body {
+  @apply min-h-screen antialiased;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Bảng giá: font số tabular */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thanh kéo panel */
+.panel-resize {
+  @apply w-1.5 shrink-0 cursor-col-resize transition-colors;
+  background: var(--border);
+}
+.panel-resize:hover,
+.panel-resize[data-resize-handle-state="hover"],
+.panel-resize[data-resize-handle-state="drag"] {
+  @apply bg-blue-500/70;
+}

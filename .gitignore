@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Logs & env
+*.log
+npm-debug.log*
+.env
+.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# IDE / editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Misc
+*.tsbuildinfo
+.turbo
