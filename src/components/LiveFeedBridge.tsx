@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useDemoStore } from "@/stores/demo-store";
+import { processWsPayload, setLiveFeedConnected } from "@/stores/demoSlice";
+import { useAppDispatch } from "@/stores/hooks";
 
 const WS_URL = "ws://127.0.0.1:3456";
 
 export function LiveFeedBridge() {
-  const setConnected = useDemoStore((s) => s.setLiveFeedConnected);
-  const processWsPayload = useDemoStore((s) => s.processWsPayload);
+  const dispatch = useAppDispatch();
   const attempted = useRef(false);
 
   useEffect(() => {
@@ -18,27 +18,29 @@ export function LiveFeedBridge() {
     try {
       ws = new WebSocket(WS_URL);
     } catch {
-      setConnected(false);
+      dispatch(setLiveFeedConnected(false));
       return;
     }
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
-    ws.onerror = () => setConnected(false);
+    ws.onopen = () => dispatch(setLiveFeedConnected(true));
+    ws.onclose = () => dispatch(setLiveFeedConnected(false));
+    ws.onerror = () => dispatch(setLiveFeedConnected(false));
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(String(ev.data));
-        processWsPayload(data);
+        dispatch(processWsPayload(data));
       } catch {
-        processWsPayload({ type: "raw", raw: String(ev.data).slice(0, 160) });
+        dispatch(
+          processWsPayload({ type: "raw", raw: String(ev.data).slice(0, 160) }),
+        );
       }
     };
 
     return () => {
       ws?.close();
-      setConnected(false);
+      dispatch(setLiveFeedConnected(false));
     };
-  }, [processWsPayload, setConnected]);
+  }, [dispatch]);
 
   return null;
 }

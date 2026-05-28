@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { useDemoStore } from "@/stores/demo-store";
+import { useAppSelector } from "@/stores/hooks";
 
 export function MarketHeader() {
-  const prices = useDemoStore((s) => s.prices);
-  const watchlist = useDemoStore((s) => s.watchlist);
+  const prices = useAppSelector((s) => s.demo.prices);
+  const watchlist = useAppSelector((s) => s.demo.watchlist);
 
   const tape = useMemo(() => {
     const keys = Array.from(

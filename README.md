@@ -10,9 +10,21 @@ Template minh họa cấu trúc trong `struct.md`: **Data → Intelligence → C
 
 ## Dữ liệu lưu ở đâu?
 
-- **Giá mock, danh mục, watchlist, danh sách tin** được đồng bộ vào **`localStorage`** (key `finance-buddy-demo-v1`) qua Zustand `persist` — F5 vẫn còn.
-- **Tick, insight, log pipeline, hàng đợi comm** chỉ nằm trong **RAM** (Zustand), refresh là mất (cố ý để log nhẹ).
-- **Sau này** có thể chuyển sang SQLite qua Tauri (`src-tauri`) hoặc backend Node — xem `struct.md`.
+- **SQLite (embedded)** — database file tại `%APPDATA%/com.financebuddy.demo/data.db`. Được bundle vào binary Rust, user không cần cài thêm gì. Lần đầu chạy app sẽ tự tạo DB và seed dữ liệu cơ bản (1940 mã CK + 26 chỉ số thị trường từ `data_config/`).
+- **Giá mock, danh mục, watchlist, danh sách tin** được đồng bộ vào **`localStorage`** (key `finance-buddy-demo-v1`) qua **Redux Toolkit** store (subscribe debounce) — F5 vẫn còn.
+- **Tick, insight, log pipeline, hàng đợi comm** chỉ nằm trong **RAM** (Redux), refresh là mất (cố ý để log nhẹ).
+- **Giá VPS (thật)** trong app desktop: Next gọi `invoke('vps_get_stock_data', …)` → Rust `reqwest` tới API công khai VPS (không cần proxy Node CORS). Nút **Giá VPS** trên dashboard; trình duyệt `next dev` không có invoke sẽ báo cần Tauri.
+
+### SQLite commands (IPC từ frontend)
+
+| Command | Mô tả |
+|---------|--------|
+| `db_get_market_indices` | Lấy danh sách chỉ số thị trường |
+| `db_get_stocks` | Tìm mã CK (filter exchange, stockType, search) |
+| `db_get_stock_by_symbol` | Lấy chi tiết 1 mã |
+| `db_count_stocks` | Đếm tổng số mã |
+
+Frontend helper: `src/lib/desktop/db.ts`.
 
 ## Chạy web (trình duyệt)
 
@@ -51,6 +63,7 @@ Next được build static vào `out/`; Tauri đọc `out/` theo `src-tauri/taur
 - **Bật auto ticker** — tick định kỳ.
 - **Import portfolio demo** — portfolio lớn hơn để insight dễ bật.
 - **Lưu tin (demo crawl)** — ghi vào danh sách tin (Data).
+- **Giá VPS** — chỉ trong Tauri: cập nhật `prices` từ API VPS qua Rust.
 
 ## WebSocket (tùy chọn)
 
@@ -62,7 +75,7 @@ UI kết nối `ws://127.0.0.1:3456`. Payload `type: "tick"` đi qua **cùng orc
 
 ## IPC (Tauri)
 
-Trong app desktop, nút **Ping Rust** gọi `invoke('app_ping')`; logic bọc trong `src/lib/desktop/ipc.ts`, lệnh Rust trong `src-tauri/src/lib.rs`.
+Trong app desktop, nút **Ping Rust** gọi `invoke('app_ping')`; logic bọc trong `src/lib/desktop/ipc.ts`. Lệnh Rust: `src-tauri/src/lib.rs` + `vps.rs` (`vps_get_list_all_stock`, `vps_get_stock_data`, `vps_get_tradingview_history`).
 
 ## Cấu trúc code (theo layer)
 
@@ -73,7 +86,7 @@ Xem chi tiết trong **`struct.md` § 5.6**. Tóm tắt:
 - `src/lib/layers/communication/` — Communication Layer  
 - `src/lib/layers/shared/` — types chung  
 - `src/lib/orchestration/` — ghép pipeline (vd `pipeline.ts`)  
-- `src/stores/` — Zustand  
+- `src/stores/` — Redux Toolkit (`demoSlice`, `store`, hooks)  
 - `src-tauri/` — shell desktop  
 
 ### Ghi chú build Next

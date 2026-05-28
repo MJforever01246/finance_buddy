@@ -1,15 +1,27 @@
 "use client";
 
-import { useMemo } from "react";
-import { useDemoStore } from "@/stores/demo-store";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import {
+  addNewsDemo,
+  clearLog,
+  dismissToast,
+  fetchVpsStockData,
+  importPortfolioDemo,
+  loadVpsFullBoard,
+  pushManualTick,
+  toggleAutoTicker,
+} from "@/stores/demoSlice";
+import { useAppDispatch, useAppSelector } from "@/stores/hooks";
+import { AllStocksBoard } from "./AllStocksBoard";
 import { ChartsIndicatorsPanel } from "./ChartsIndicatorsPanel";
 import { DesktopPing } from "./DesktopPing";
 import { LiveFeedBridge } from "./LiveFeedBridge";
-import { MarketBoardTable } from "./MarketBoardTable";
-import { MarketHeader } from "./MarketHeader";
+import { VpsPriceBoard } from "./VpsPriceBoard";
 import { NewsClipPanel } from "./NewsClipPanel";
 import { SymbolDetailPanel } from "./SymbolDetailPanel";
 import { ThemeToggle } from "./ThemeToggle";
+import { TradingViewChart } from "./TradingViewChart";
 
 const layerBadge: Record<string, string> = {
   data: "bg-emerald-500/15 text-emerald-800 ring-emerald-500/25 dark:text-emerald-300 dark:ring-emerald-500/30",
@@ -19,25 +31,34 @@ const layerBadge: Record<string, string> = {
     "bg-sky-500/15 text-sky-900 ring-sky-500/25 dark:text-sky-200 dark:ring-sky-500/30",
 };
 
-export function DemoDashboard() {
-  const pipelineLog = useDemoStore((s) => s.pipelineLog);
-  const liveFeedConnected = useDemoStore((s) => s.liveFeedConnected);
-  const autoTickerOn = useDemoStore((s) => s.autoTickerOn);
-  const toast = useDemoStore((s) => s.toast);
+function AutoTickerBridge() {
+  const on = useAppSelector((s) => s.demo.autoTickerOn);
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    if (!on) return;
+    const id = window.setInterval(() => {
+      void dispatch(pushManualTick());
+    }, 1400);
+    return () => window.clearInterval(id);
+  }, [on, dispatch]);
+  return null;
+}
 
-  const pushManualTick = useDemoStore((s) => s.pushManualTick);
-  const toggleAutoTicker = useDemoStore((s) => s.toggleAutoTicker);
-  const importPortfolioDemo = useDemoStore((s) => s.importPortfolioDemo);
-  const addNewsDemo = useDemoStore((s) => s.addNewsDemo);
-  const clearLog = useDemoStore((s) => s.clearLog);
-  const dismissToast = useDemoStore((s) => s.dismissToast);
+export function DemoDashboard() {
+  const dispatch = useAppDispatch();
+  const pipelineLog = useAppSelector((s) => s.demo.pipelineLog);
+  const liveFeedConnected = useAppSelector((s) => s.demo.liveFeedConnected);
+  const autoTickerOn = useAppSelector((s) => s.demo.autoTickerOn);
+  const toast = useAppSelector((s) => s.demo.toast);
+  const vpsLoading = useAppSelector((s) => s.demo.vpsLoading);
+  const vpsError = useAppSelector((s) => s.demo.vpsError);
 
   const pipelineCount = useMemo(() => pipelineLog.length, [pipelineLog]);
 
   return (
     <div className="flex min-h-screen flex-col">
+      <AutoTickerBridge />
       <LiveFeedBridge />
-      <MarketHeader />
 
       <div className="mx-auto flex w-full max-w-[1680px] flex-1 flex-col gap-4 px-3 py-4 sm:px-4">
         <header className="flex flex-col gap-3 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-center lg:justify-between">
@@ -49,72 +70,101 @@ export function DemoDashboard() {
               Data → Insight → Action
             </h1>
             <p className="mt-1 max-w-xl text-xs leading-relaxed text-[var(--muted)]">
-              Bảng giá + chi tiết mã (tỉ lệ cố định trên màn lớn). Tin &amp; giá demo lưu{" "}
-              <code className="rounded bg-[var(--surface-2)] px-1">localStorage</code> — xem README.
+              State Redux Toolkit; tin &amp; subset giá lưu{" "}
+              <code className="rounded bg-[var(--surface-2)] px-1">localStorage</code>. Giá VPS qua{" "}
+              <code className="rounded bg-[var(--surface-2)] px-1">Tauri invoke</code> (Rust) — xem README.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${
-                liveFeedConnected
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-[var(--up)]"
-                  : "border-[var(--border)] text-[var(--muted)]"
-              }`}
-              title="WebSocket demo-server"
-            >
-              WS: {liveFeedConnected ? ":3456" : "tắt"}
-            </span>
-            <ThemeToggle />
-            <button
-              type="button"
-              onClick={pushManualTick}
-              className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 sm:text-sm"
-            >
-              Tick tiếp
-            </button>
-            <button
-              type="button"
-              onClick={toggleAutoTicker}
-              className={`rounded-lg px-3 py-2 text-xs font-medium ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)] sm:text-sm ${
-                autoTickerOn ? "bg-emerald-500/15 text-[var(--up)]" : "text-[var(--text)]"
-              }`}
-            >
-              {autoTickerOn ? "Tắt auto" : "Auto ticker"}
-            </button>
-            <button
-              type="button"
-              onClick={importPortfolioDemo}
-              className="rounded-lg px-3 py-2 text-xs font-medium text-[var(--text)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)] sm:text-sm"
-            >
-              Import PF
-            </button>
-            <button
-              type="button"
-              onClick={addNewsDemo}
-              className="rounded-lg px-3 py-2 text-xs font-medium text-[var(--text)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)] sm:text-sm"
-            >
-              Tin demo
-            </button>
-            <button
-              type="button"
-              onClick={clearLog}
-              className="rounded-lg px-3 py-2 text-xs text-[var(--muted)] hover:text-[var(--text)] sm:text-sm"
-            >
-              Xóa log
-            </button>
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${
+                  liveFeedConnected
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-[var(--up)]"
+                    : "border-[var(--border)] text-[var(--muted)]"
+                }`}
+                title="WebSocket demo-server"
+              >
+                WS: {liveFeedConnected ? ":3456" : "tắt"}
+              </span>
+              <ThemeToggle />
+              <Link
+                href="/insight"
+                className="rounded-lg px-3 py-2 text-xs font-medium text-violet-700 ring-1 ring-violet-500/30 hover:bg-violet-500/10 dark:text-violet-300 sm:text-sm"
+              >
+                Demo sản phẩm
+              </Link>
+              <Link
+                href="/crawl"
+                className="rounded-lg px-3 py-2 text-xs font-medium text-orange-700 ring-1 ring-orange-500/30 hover:bg-orange-500/10 dark:text-orange-300 sm:text-sm"
+              >
+                Data Crawler
+              </Link>
+              <button
+                type="button"
+                onClick={() => void dispatch(pushManualTick())}
+                className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 sm:text-sm"
+              >
+                Tick tiếp
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(toggleAutoTicker())}
+                className={`rounded-lg px-3 py-2 text-xs font-medium ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)] sm:text-sm ${
+                  autoTickerOn ? "bg-emerald-500/15 text-[var(--up)]" : "text-[var(--text)]"
+                }`}
+              >
+                {autoTickerOn ? "Tắt auto" : "Auto ticker"}
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(importPortfolioDemo())}
+                className="rounded-lg px-3 py-2 text-xs font-medium text-[var(--text)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)] sm:text-sm"
+              >
+                Import PF
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(addNewsDemo())}
+                className="rounded-lg px-3 py-2 text-xs font-medium text-[var(--text)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)] sm:text-sm"
+              >
+                Tin demo
+              </button>
+              <button
+                type="button"
+                disabled={vpsLoading}
+                onClick={() => void dispatch(loadVpsFullBoard())}
+                className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-50 sm:text-sm"
+              >
+                {vpsLoading ? "VPS…" : "Tải bảng VPS"}
+              </button>
+              <button
+                type="button"
+                disabled={vpsLoading}
+                onClick={() => void dispatch(fetchVpsStockData())}
+                className="rounded-lg bg-slate-600 px-3 py-2 text-xs font-medium text-white hover:bg-slate-500 disabled:opacity-50 sm:text-sm"
+              >
+                Giá (PF+WL)
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(clearLog())}
+                className="rounded-lg px-3 py-2 text-xs text-[var(--muted)] hover:text-[var(--text)] sm:text-sm"
+              >
+                Xóa log
+              </button>
+            </div>
+            {vpsError ? (
+              <p className="max-w-md text-right text-[11px] text-rose-600 dark:text-rose-400">{vpsError}</p>
+            ) : null}
           </div>
         </header>
 
         <DesktopPing />
 
-        <div className="grid min-h-[min(52vh,520px)] w-full grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.42fr)_minmax(300px,400px)] xl:items-stretch">
-          <div className="min-h-0 min-w-0">
-            <MarketBoardTable />
-          </div>
-          <div className="min-h-0 min-w-0 xl:max-w-[420px] xl:justify-self-end xl:w-full">
-            <SymbolDetailPanel />
-          </div>
-        </div>
+        <BoardSection />
+
+        <TradingViewChart />
 
         <div className="grid gap-4 lg:grid-cols-2">
           <ChartsIndicatorsPanel />
@@ -130,11 +180,11 @@ export function DemoDashboard() {
           </summary>
           <div className="border-t border-[var(--border)] px-4 pb-4 pt-2">
             <pre className="mb-4 overflow-x-auto rounded-lg bg-[var(--surface-2)] p-3 text-[10px] leading-relaxed text-[var(--muted)]">
-              {`[Next.js] ← Tauri desktop:dev / trình duyệt
-     ↕ invoke (app_ping …)
-[src-tauri]
+              {`[Next.js + Redux] ← Tauri desktop:dev / trình duyệt
+     ↕ invoke (vps_get_stock_data …)
+[src-tauri / reqwest]
      ↕
-[Node WS demo] → ingestExternalTick → Intelligence → Communication`}
+[Node WS demo] → processWsPayload → Intelligence → Communication`}
             </pre>
             <PipelineLogList entries={pipelineLog} />
           </div>
@@ -152,7 +202,7 @@ export function DemoDashboard() {
             </div>
             <button
               type="button"
-              onClick={dismissToast}
+              onClick={() => dispatch(dismissToast())}
               className="shrink-0 rounded-md px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
             >
               Đóng
@@ -160,6 +210,51 @@ export function DemoDashboard() {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+type BoardTab = "all_stocks" | "vps_board";
+
+function BoardSection() {
+  const [tab, setTab] = useState<BoardTab>("all_stocks");
+
+  return (
+    <div className="h-[min(65vh,640px)]">
+      {/* Board tabs */}
+      <div className="mb-2 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setTab("all_stocks")}
+          className={`rounded-t-lg px-4 py-2 text-xs font-semibold transition-colors ${
+            tab === "all_stocks"
+              ? "bg-[#050608] text-amber-300 ring-1 ring-[#1e293b]"
+              : "text-[var(--muted)] hover:text-[var(--text)]"
+          }`}
+        >
+          Tất cả mã (SQLite)
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("vps_board")}
+          className={`rounded-t-lg px-4 py-2 text-xs font-semibold transition-colors ${
+            tab === "vps_board"
+              ? "bg-[#050608] text-amber-300 ring-1 ring-[#1e293b]"
+              : "text-[var(--muted)] hover:text-[var(--text)]"
+          }`}
+        >
+          Bảng giá VPS
+        </button>
+      </div>
+
+      <div className="grid h-[calc(100%-40px)] w-full grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.42fr)_minmax(300px,400px)] xl:items-stretch">
+        <div className="min-h-0 min-w-0 overflow-hidden">
+          {tab === "all_stocks" ? <AllStocksBoard /> : <VpsPriceBoard />}
+        </div>
+        <div className="min-h-0 min-w-0 overflow-hidden xl:max-w-[420px] xl:justify-self-end xl:w-full">
+          <SymbolDetailPanel />
+        </div>
+      </div>
     </div>
   );
 }

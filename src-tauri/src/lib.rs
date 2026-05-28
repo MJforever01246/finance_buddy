@@ -1,3 +1,10 @@
+mod crawl;
+mod db;
+mod vps;
+
+use std::sync::Mutex;
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -9,14 +16,33 @@ pub fn run() {
             .build(),
         )?;
       }
+
+      // Initialize SQLite database
+      let conn = db::init_db(app.handle())
+        .expect("failed to initialize SQLite database");
+      app.manage(db::DbState(Mutex::new(conn)));
+
       Ok(())
     })
-    .invoke_handler(tauri::generate_handler![app_ping])
+    .invoke_handler(tauri::generate_handler![
+      app_ping,
+      vps::vps_get_list_all_stock,
+      vps::vps_get_stock_data,
+      vps::vps_get_tradingview_history,
+      db::db_get_tradingview_history,
+      db::db_get_market_indices,
+      db::db_get_stocks,
+      db::db_get_stock_by_symbol,
+      db::db_count_stocks,
+      crawl::crawl_parse_curl,
+      crawl::crawl_fetch_and_save,
+      crawl::crawl_get_all_symbols,
+      crawl::crawl_get_stats,
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
 
-/// IPC demo: UI gọi `invoke('app_ping')` — sau thay bằng đọc file, notification, v.v.
 #[tauri::command]
 fn app_ping() -> String {
   format!(

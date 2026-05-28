@@ -18,7 +18,7 @@ import {
   sma,
   toChartData,
 } from "@/lib/chart-mock";
-import { useDemoStore } from "@/stores/demo-store";
+import { useAppSelector } from "@/stores/hooks";
 
 function IndicatorChip({
   label,
@@ -44,8 +44,8 @@ function IndicatorChip({
 }
 
 export function ChartsIndicatorsPanel() {
-  const selectedSymbol = useDemoStore((s) => s.selectedSymbol);
-  const prices = useDemoStore((s) => s.prices);
+  const selectedSymbol = useAppSelector((s) => s.demo.selectedSymbol);
+  const prices = useAppSelector((s) => s.demo.prices);
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);

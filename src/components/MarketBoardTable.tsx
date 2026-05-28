@@ -2,17 +2,18 @@
 
 import { useMemo } from "react";
 import type { MarketTick } from "@/lib/layers/shared/types";
-import { useDemoStore } from "@/stores/demo-store";
+import { setSelectedSymbol } from "@/stores/demoSlice";
+import { useAppDispatch, useAppSelector } from "@/stores/hooks";
 
 function lastTickForSymbol(ticks: MarketTick[], symbol: string): MarketTick | undefined {
   return ticks.find((t) => t.symbol === symbol);
 }
 
 export function MarketBoardTable() {
-  const prices = useDemoStore((s) => s.prices);
-  const ticks = useDemoStore((s) => s.ticks);
-  const selectedSymbol = useDemoStore((s) => s.selectedSymbol);
-  const setSelectedSymbol = useDemoStore((s) => s.setSelectedSymbol);
+  const dispatch = useAppDispatch();
+  const prices = useAppSelector((s) => s.demo.prices);
+  const ticks = useAppSelector((s) => s.demo.ticks);
+  const selectedSymbol = useAppSelector((s) => s.demo.selectedSymbol);
 
   const rows = useMemo(() => {
     return Object.keys(prices)
@@ -53,7 +54,7 @@ export function MarketBoardTable() {
             {rows.map((r) => (
               <tr
                 key={r.sym}
-                onClick={() => setSelectedSymbol(r.sym)}
+                onClick={() => dispatch(setSelectedSymbol(r.sym))}
                 className={`cursor-pointer border-b border-[var(--border)] font-mono tabular-nums transition-colors hover:bg-[var(--surface-2)] ${
                   selectedSymbol === r.sym ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/30" : ""
                 }`}

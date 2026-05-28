@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useDemoStore } from "@/stores/demo-store";
+import {
+  addNewsClip,
+  addNewsDemo,
+  clearPersistedDemoData,
+  importNewsBulkThunk,
+} from "@/stores/demoSlice";
+import { useAppDispatch, useAppSelector } from "@/stores/hooks";
 
 export function NewsClipPanel() {
-  const newsLinks = useDemoStore((s) => s.newsLinks);
-  const addNewsClip = useDemoStore((s) => s.addNewsClip);
-  const addNewsDemo = useDemoStore((s) => s.addNewsDemo);
-  const importNewsBulk = useDemoStore((s) => s.importNewsBulk);
-  const clearPersistedDemoData = useDemoStore((s) => s.clearPersistedDemoData);
+  const dispatch = useAppDispatch();
+  const newsLinks = useAppSelector((s) => s.demo.newsLinks);
 
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -53,15 +56,18 @@ export function NewsClipPanel() {
           <button
             type="button"
             onClick={() => {
-              const n = importNewsBulk(bulkText);
-              if (n > 0) {
-                setBulkText("");
-                setHint(`Đã import ${n} link.`);
-                setTimeout(() => setHint(null), 2500);
-              } else {
-                setHint("Không parse được dòng nào — kiểm tra URL (https…).");
-                setTimeout(() => setHint(null), 3000);
-              }
+              void dispatch(importNewsBulkThunk(bulkText)).then((action) => {
+                if (!importNewsBulkThunk.fulfilled.match(action)) return;
+                const n = action.payload;
+                if (n > 0) {
+                  setBulkText("");
+                  setHint(`Đã import ${n} link.`);
+                  setTimeout(() => setHint(null), 2500);
+                } else {
+                  setHint("Không parse được dòng nào — kiểm tra URL (https…).");
+                  setTimeout(() => setHint(null), 3000);
+                }
+              });
             }}
             className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500"
           >
@@ -76,7 +82,7 @@ export function NewsClipPanel() {
               ) {
                 return;
               }
-              clearPersistedDemoData();
+              void dispatch(clearPersistedDemoData());
               setHint("Đã xóa dữ liệu local & reset demo.");
               setTimeout(() => setHint(null), 2500);
             }}
@@ -132,11 +138,13 @@ export function NewsClipPanel() {
                   t = "Link";
                 }
               }
-              addNewsClip({
-                url: u,
-                title: t,
-                preview: preview.trim() || undefined,
-              });
+              dispatch(
+                addNewsClip({
+                  url: u,
+                  title: t,
+                  preview: preview.trim() || undefined,
+                }),
+              );
               setUrl("");
               setTitle("");
               setPreview("");
@@ -149,7 +157,7 @@ export function NewsClipPanel() {
           </button>
           <button
             type="button"
-            onClick={() => addNewsDemo()}
+            onClick={() => dispatch(addNewsDemo())}
             className="text-xs text-[var(--muted)] underline-offset-2 hover:text-[var(--text)] hover:underline"
           >
             + Thêm tin demo có sẵn

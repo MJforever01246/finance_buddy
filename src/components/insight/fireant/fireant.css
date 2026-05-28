@@ -1,0 +1,55 @@
+/* Shell kiểu FireAnt — dark, dày dữ liệu */
+.fireant-shell {
+  --fa-bg: #0a0e14;
+  --fa-surface: #11161d;
+  --fa-surface-2: #0d1218;
+  --fa-border: #243044;
+  --fa-muted: #7d8aa5;
+  --fa-text: #e8edf4;
+  --fa-up: #4ade80;
+  --fa-down: #f87171;
+  --fa-ref: #fbbf24;
+  --fa-ceiling: #c084fc;
+  --fa-floor: #22d3ee;
+  --fa-accent: #3b82f6;
+
+  background: var(--fa-bg);
+  color: var(--fa-text);
+  font-size: 12px;
+}
+
+.fireant-shell .fa-cell {
+  @apply border-r border-b px-1.5 py-0.5 tabular-nums;
+  border-color: var(--fa-border);
+}
+
+.fireant-shell .fa-th {
+  @apply sticky top-0 z-10 px-1.5 py-1 text-left font-medium;
+  background: var(--fa-surface-2);
+  color: var(--fa-muted);
+  border-bottom: 1px solid var(--fa-border);
+}
+
+.fireant-shell .fa-row:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.fireant-shell .fa-row-selected {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.fireant-shell .text-up {
+  color: var(--fa-up);
+}
+.fireant-shell .text-down {
+  color: var(--fa-down);
+}
+.fireant-shell .text-ref {
+  color: var(--fa-ref);
+}
+.fireant-shell .text-ceiling {
+  color: var(--fa-ceiling);
+}
+.fireant-shell .text-floor {
+  color: var(--fa-floor);
+}
