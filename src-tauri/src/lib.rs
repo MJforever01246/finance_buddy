@@ -1,5 +1,6 @@
 mod crawl;
 mod db;
+mod finrag;
 mod vps;
 
 use std::sync::Mutex;
@@ -38,6 +39,13 @@ pub fn run() {
       crawl::crawl_fetch_and_save,
       crawl::crawl_get_all_symbols,
       crawl::crawl_get_stats,
+      finrag::finrag_health,
+      finrag::finrag_list_documents,
+      finrag::finrag_upload_document,
+      finrag::finrag_list_sessions,
+      finrag::finrag_create_session,
+      finrag::finrag_list_messages,
+      finrag::finrag_send_message,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -21,7 +21,7 @@ import { VpsPriceBoard } from "./VpsPriceBoard";
 import { NewsClipPanel } from "./NewsClipPanel";
 import { SymbolDetailPanel } from "./SymbolDetailPanel";
 import { ThemeToggle } from "./ThemeToggle";
-import { TradingViewChart } from "./TradingViewChart";
+import { ChartSection } from "./ChartSection";
 
 const layerBadge: Record<string, string> = {
   data: "bg-emerald-500/15 text-emerald-800 ring-emerald-500/25 dark:text-emerald-300 dark:ring-emerald-500/30",
@@ -100,6 +100,12 @@ export function DemoDashboard() {
               >
                 Data Crawler
               </Link>
+              <Link
+                href="/bctc"
+                className="rounded-lg px-3 py-2 text-xs font-medium text-teal-800 ring-1 ring-teal-500/30 hover:bg-teal-500/10 dark:text-teal-300 sm:text-sm"
+              >
+                AI · BCTC
+              </Link>
               <button
                 type="button"
                 onClick={() => void dispatch(pushManualTick())}
@@ -164,7 +170,7 @@ export function DemoDashboard() {
 
         <BoardSection />
 
-        <TradingViewChart />
+        <ChartSection />
 
         <div className="grid gap-4 lg:grid-cols-2">
           <ChartsIndicatorsPanel />

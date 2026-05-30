@@ -24,6 +24,9 @@ src-tauri/gen/
 .vscode/*
 !.vscode/extensions.json
 
+# FinRAG dev data
+.data/
+
 # Misc
 *.tsbuildinfo
 .turbo

@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { useAppSelector } from "@/stores/hooks";
 import { createCustomDatafeed } from "@/lib/chart/datafeed";
 import { isTauriRuntime } from "@/lib/tauri-env";
+import { ChartDebugPanel } from "./ChartDebugPanel";
 
 declare global {
   interface Window {
@@ -162,6 +163,7 @@ export function TradingViewChart() {
         className="w-full"
         style={{ height: "520px" }}
       />
+      <ChartDebugPanel />
     </div>
   );
 }

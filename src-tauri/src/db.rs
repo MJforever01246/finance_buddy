@@ -51,7 +51,9 @@ pub fn init_db(app: &AppHandle) -> Result<Connection, String> {
         .map_err(|e| format!("pragma: {e}"))?;
 
     migrate(&conn)?;
+    crate::finrag::migrate_finrag(&conn)?;
     seed_if_empty(&conn)?;
+    crate::finrag::seed_demo_if_empty(&conn)?;
 
     log::info!("SQLite ready at {}", db_path.display());
     Ok(conn)

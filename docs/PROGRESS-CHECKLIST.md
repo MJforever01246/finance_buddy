@@ -15,7 +15,7 @@
 | Dashboard chính (`/`) | **~80%** | Mock tick, WS, tin, chart demo, bảng giá VPS |
 | Trang sản phẩm Insight (`/insight`) | **~60%** | UI FireAnt-style, đa danh mục demo; chưa gắn insight thật theo sổ |
 | Dữ liệu VPS thật (Tauri) | **~70%** | Universe + bảng giá; chưa chart TV history trên UI |
-| AI / Python / Kafka / Redis | **0%** | Chỉ stub trong code |
+| AI / Python / Kafka / Redis | **~20%** | FinRAG `/bctc` → Rust/Tauri + SQLite + Ollama + Gemini |
 | Mobile bridge / OS notification | **~20%** | Queue `mobile-bridge` trong RAM, chưa gửi thật |
 
 **Ký hiệu:** `[x]` xong · `[~]` một phần · `[ ]` chưa làm
@@ -189,7 +189,16 @@
 | 6.1.9 | Link sang `/insight` | [x] | "Demo sản phẩm" |
 | 6.1.10 | Ping Rust (IPC) | [x] | `DesktopPing.tsx` |
 
-### 6.2 Trang Insight `/insight` — FireAnt-style
+### 6.2 Trang FinRAG `/bctc` — AI đọc báo cáo tài chính
+
+| # | Thành phần | Trạng thái | File |
+|---|------------|------------|------|
+| 6.2.0 | Tab Hỏi đáp + Báo cáo/upload | [x] | `src/app/bctc/page.tsx`, `src/components/finrag/*` |
+| 6.2.0b | FinRAG Rust `src-tauri/src/finrag/*` + IPC | [x] | SQLite, Ollama embed, Gemini chat |
+| 6.2.0d | Client `src/lib/finrag/client.ts` | [x] | `invoke` Tauri only — không Node server |
+| 6.2.0c | Link từ dashboard & insight nav | [x] | `DemoDashboard`, `FireAntTopNav` |
+
+### 6.3 Trang Insight `/insight` — FireAnt-style
 
 | # | Thành phần | Trạng thái | File |
 |---|------------|------------|------|
@@ -204,7 +213,7 @@
 | 6.2.9 | Insight feed gắn đúng sổ đang chọn | [~] | Hiển thị insights Redux chung |
 | 6.2.10 | Chart / order book thật | [ ] | Chưa |
 
-### 6.3 VPS Price Board — tính năng UI
+### 6.4 VPS Price Board — tính năng UI
 
 | # | Tính năng | Trạng thái |
 |---|-----------|------------|

@@ -42,6 +42,12 @@ export function FireAntTopNav() {
           />
         </div>
         <Link
+          href="/bctc"
+          className="text-[10px] text-[var(--fa-muted)] hover:text-[var(--fa-accent)]"
+        >
+          AI · BCTC
+        </Link>
+        <Link
           href="/"
           className="text-[10px] text-[var(--fa-muted)] hover:text-[var(--fa-accent)]"
         >
