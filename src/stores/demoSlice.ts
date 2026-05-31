@@ -12,7 +12,11 @@ import type {
   Position,
   SavedNewsLink,
 } from "@/lib/layers/types";
-import { parseNewsImportBlock } from "@/lib/news-import";
+import { fetchIndaySnapshot, type IndayDataset } from "@/lib/inday/loadIndaySnapshot";
+import { resolveBookContext } from "@/lib/insight/bookMetrics";
+import { DEMO_BOOKS, isDemoBookId } from "@/lib/insight/demoBooks";
+import { portfolioPnL } from "@/lib/layers/data";
+import { buildPortfolioRiskReport } from "@/lib/risk/report";
 import { isTauriRuntime } from "@/lib/tauri-env";
 import { buildSymbolCsv, normalizeVpsQuotesJson } from "@/lib/vps/normalize";
 import { parseStockRowsJson } from "@/lib/vps/parseVpsBoard";
@@ -66,6 +70,7 @@ export type DemoSliceState = {
   lastWsMessage: string | null;
   autoTickerOn: boolean;
   toast: string | null;
+  toastKind: "insight" | "risk" | "info" | null;
   selectedSymbol: string | null;
   vpsLoading: boolean;
   vpsError: string | null;
@@ -77,6 +82,10 @@ export type DemoSliceState = {
   boardSearch: string;
   boardWatchlistId: string;
   savedWatchlists: SavedWatchlist[];
+  /** Sổ danh mục đang chọn trên `/insight` — pipeline insight đánh giá theo sổ này */
+  activeBookId: string;
+  /** Đỉnh NAV theo sổ — drawdown (rust-finance DrawdownMonitor) */
+  riskPeakByBook: Record<string, number>;
 };
 
 export function getInitialDemoState(): DemoSliceState {
@@ -96,6 +105,7 @@ export function getInitialDemoState(): DemoSliceState {
     lastWsMessage: null,
     autoTickerOn: false,
     toast: null,
+    toastKind: null,
     selectedSymbol: keys[0] ?? null,
     vpsLoading: false,
     vpsError: null,
@@ -107,6 +117,8 @@ export function getInitialDemoState(): DemoSliceState {
     boardSearch: "",
     boardWatchlistId: "ALL",
     savedWatchlists: [],
+    activeBookId: "own",
+    riskPeakByBook: {},
   };
 }
 
@@ -134,6 +146,7 @@ export function pickPersist(s: DemoSliceState) {
     boardMarketTab: s.boardMarketTab,
     boardIndustryFilter: s.boardIndustryFilter,
     boardSearch: s.boardSearch,
+    activeBookId: s.activeBookId,
   };
 }
 
@@ -180,17 +193,54 @@ export function mergeHydrated(
         : base.boardIndustryFilter,
     boardSearch:
       typeof p.boardSearch === "string" ? p.boardSearch : base.boardSearch,
+    activeBookId:
+      typeof p.activeBookId === "string" && isDemoBookId(p.activeBookId)
+        ? p.activeBookId
+        : base.activeBookId,
   };
+}
+
+function touchBookPeaks(state: DemoSliceState) {
+  for (const book of DEMO_BOOKS) {
+    const ctx = resolveBookContext(book.id, state.positions, state.prices);
+    const { market } = portfolioPnL(ctx.positions, ctx.prices);
+    const prev = state.riskPeakByBook[book.id] ?? market;
+    state.riskPeakByBook[book.id] = Math.max(prev, market);
+  }
+}
+
+function riskAlertsToInsights(
+  bookId: string,
+  alerts: ReturnType<typeof buildPortfolioRiskReport>["alerts"],
+  symbols: string[],
+): Insight[] {
+  return alerts.map((a) => ({
+    id: `ins-risk-${a.code}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    title: a.title,
+    detail: a.detail,
+    severity: a.severity,
+    relatedSymbols: symbols,
+    ts: Date.now(),
+    bookId,
+  }));
+}
+
+function bookPipelineFromState(d: DemoSliceState) {
+  return resolveBookContext(d.activeBookId, d.positions, d.prices);
 }
 
 export const pushManualTick = createAsyncThunk(
   "demo/pushManualTick",
   (_, { getState }) => {
     const d = (getState() as { demo: DemoSliceState }).demo;
+    const ctx = bookPipelineFromState(d);
     return pushDemoTick({
       prices: d.prices,
-      positions: d.positions,
+      positions: ctx.positions,
       rotateIndex: d.rotateIndex,
+      bookId: ctx.bookId,
+      bookLabel: ctx.bookLabel,
+      rotateSymbols: ctx.rotateSymbols,
     });
   },
 );
@@ -222,6 +272,19 @@ export const fetchVpsStockData = createAsyncThunk(
 );
 
 const STOCK_DATA_CHUNK = 42;
+
+export const loadIndayBoard = createAsyncThunk(
+  "demo/loadIndayBoard",
+  async (dataset: IndayDataset, { rejectWithValue }) => {
+    try {
+      return await fetchIndaySnapshot(dataset);
+    } catch (e) {
+      return rejectWithValue(
+        e instanceof Error ? e.message : String(e ?? "Lỗi tải snapshot offline"),
+      );
+    }
+  },
+);
 
 export const loadVpsFullBoard = createAsyncThunk(
   "demo/loadVpsFullBoard",
@@ -297,6 +360,7 @@ const demoSlice = createSlice({
         },
         ...state.pipelineLog,
       ].slice(0, MAX_LOG);
+      touchBookPeaks(state);
     },
 
     addNewsDemo: (state) => {
@@ -361,6 +425,41 @@ const demoSlice = createSlice({
       state.boardWatchlistId = action.payload;
     },
 
+    setActiveBookId: (state, action: PayloadAction<string>) => {
+      if (!isDemoBookId(action.payload)) return;
+      state.activeBookId = action.payload;
+      touchBookPeaks(state);
+      const ctx = resolveBookContext(
+        state.activeBookId,
+        state.positions,
+        state.prices,
+      );
+      const { market } = portfolioPnL(ctx.positions, ctx.prices);
+      const peak = state.riskPeakByBook[state.activeBookId] ?? market;
+      const report = buildPortfolioRiskReport({
+        positions: ctx.positions,
+        prices: ctx.prices,
+        peakEquity: peak,
+      });
+      const snapshot = riskAlertsToInsights(
+        ctx.bookId,
+        report.alerts,
+        ctx.positions.map((p) => p.symbol),
+      );
+      if (snapshot.length) {
+        state.insights = [...snapshot, ...state.insights].slice(0, 40);
+        state.pipelineLog = [
+          {
+            layer: "intelligence" as LayerId,
+            kind: "risk.book-snapshot",
+            message: `Risk «${ctx.bookLabel}» — ${snapshot.length} cảnh báo`,
+            ts: Date.now(),
+          },
+          ...state.pipelineLog,
+        ].slice(0, MAX_LOG);
+      }
+    },
+
     createSavedWatchlist: (
       state,
       action: PayloadAction<{ name: string; symbols: string[] }>,
@@ -417,10 +516,24 @@ const demoSlice = createSlice({
     clearLog: (state) => {
       state.pipelineLog = [];
       state.toast = null;
+      state.toastKind = null;
     },
 
     dismissToast: (state) => {
       state.toast = null;
+      state.toastKind = null;
+    },
+
+    setToast: (
+      state,
+      action: PayloadAction<{ message: string; kind?: "insight" | "risk" | "info" }>,
+    ) => {
+      state.toast = action.payload.message;
+      state.toastKind = action.payload.kind ?? "info";
+    },
+
+    clearCommQueue: (state) => {
+      state.commQueue = [];
     },
 
     setLiveFeedConnected: (state, action: PayloadAction<boolean>) => {
@@ -441,15 +554,19 @@ const demoSlice = createSlice({
           price: number;
           volume?: number;
         };
+        const ctx = bookPipelineFromState(state);
         const result = ingestExternalTick({
           symbol: p.symbol,
           price: p.price,
           volume: typeof p.volume === "number" ? p.volume : undefined,
           prices: state.prices,
-          positions: state.positions,
+          positions: ctx.positions,
+          bookId: ctx.bookId,
+          bookLabel: ctx.bookLabel,
         });
         const toastItem = result.deliveries.find((x) => x.target === "toast");
         state.prices = result.prices;
+        touchBookPeaks(state);
         state.ticks = [result.tick, ...state.ticks].slice(0, MAX_TICKS);
         state.insights = [...result.insights, ...state.insights].slice(0, 40);
         state.commQueue = [...result.deliveries, ...state.commQueue].slice(
@@ -463,6 +580,7 @@ const demoSlice = createSlice({
         state.lastWsMessage = `ws tick ${p.symbol}`;
         if (toastItem) {
           state.toast = `${toastItem.title}\n${toastItem.body}`;
+          state.toastKind = "insight";
         }
         return;
       }
@@ -489,6 +607,7 @@ const demoSlice = createSlice({
         const toastItem = result.deliveries.find((x) => x.target === "toast");
         state.rotateIndex = result.rotateIndex;
         state.prices = result.prices;
+        touchBookPeaks(state);
         state.ticks = [result.tick, ...state.ticks].slice(0, MAX_TICKS);
         state.insights = [...result.insights, ...state.insights].slice(0, 40);
         state.commQueue = [...result.deliveries, ...state.commQueue].slice(
@@ -501,6 +620,7 @@ const demoSlice = createSlice({
         );
         if (toastItem) {
           state.toast = `${toastItem.title}\n${toastItem.body}`;
+          state.toastKind = "insight";
         }
       })
       .addCase(fetchVpsStockData.pending, (state) => {
@@ -547,6 +667,7 @@ const demoSlice = createSlice({
         for (const [sym, row] of Object.entries(action.payload.board)) {
           if (row.matchP > 0) state.prices[sym] = row.matchP;
         }
+        touchBookPeaks(state);
         state.pipelineLog = [
           {
             layer: "data" as LayerId,
@@ -563,6 +684,45 @@ const demoSlice = createSlice({
           typeof action.payload === "string"
             ? action.payload
             : String(action.error.message ?? "Lỗi tải bảng VPS");
+      })
+      .addCase(loadIndayBoard.pending, (state) => {
+        state.vpsLoading = true;
+        state.vpsError = null;
+      })
+      .addCase(loadIndayBoard.fulfilled, (state, action) => {
+        state.vpsLoading = false;
+        state.vpsUniverse = action.payload.universe;
+        state.vpsBoardBySymbol = action.payload.board;
+        state.vpsSymbolOrder = action.payload.symbolOrder;
+        if (action.payload.dataset === "vn30") {
+          state.boardMarketTab = "VN30";
+        } else if (state.boardMarketTab === "VN30") {
+          state.boardMarketTab = "HOSE";
+        }
+        const nBoard = Object.keys(action.payload.board).length;
+        for (const [sym, row] of Object.entries(action.payload.board)) {
+          if (row.matchP > 0) state.prices[sym] = row.matchP;
+        }
+        touchBookPeaks(state);
+        const label = action.payload.dataset === "hose" ? "HOSE" : "VN30";
+        state.pipelineLog = [
+          {
+            layer: "data" as LayerId,
+            kind: "inday.snapshot",
+            message: `Snapshot offline ${label}: ${nBoard} mã · ${action.payload.tradingDate || "—"}`,
+            ts: Date.now(),
+          },
+          ...state.pipelineLog,
+        ].slice(0, MAX_LOG);
+        state.toast = `Đã tải snapshot ${label} (${nBoard} mã)`;
+        state.toastKind = "info";
+      })
+      .addCase(loadIndayBoard.rejected, (state, action) => {
+        state.vpsLoading = false;
+        state.vpsError =
+          typeof action.payload === "string"
+            ? action.payload
+            : String(action.error.message ?? "Lỗi snapshot offline");
       });
   },
 });
@@ -577,12 +737,15 @@ export const {
   setSelectedSymbol,
   clearLog,
   dismissToast,
+  setToast,
+  clearCommQueue,
   setLiveFeedConnected,
   processWsPayload,
   setBoardMarketTab,
   setBoardIndustryFilter,
   setBoardSearch,
   setBoardWatchlistId,
+  setActiveBookId,
   createSavedWatchlist,
   deleteSavedWatchlist,
   addSymbolToWatchlist,

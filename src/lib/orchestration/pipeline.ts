@@ -14,17 +14,27 @@ import {
 } from "@/lib/layers/data";
 import { evaluateTickAgainstPortfolio } from "@/lib/layers/intelligence";
 import { insightToDeliveries } from "@/lib/layers/communication";
+import { pricesForBook } from "@/lib/insight/bookMetrics";
+import { findDemoBook } from "@/lib/insight/demoBooks";
+
+function evalPricesForBook(
+  bookId: string,
+  globalPrices: Record<string, number>,
+): Record<string, number> {
+  return pricesForBook(findDemoBook(bookId), globalPrices);
+}
 
 function runDownstreamPipeline(
   tick: MarketTick,
   positions: Position[],
   prices: Record<string, number>,
+  bookMeta: { bookId: string; bookLabel?: string },
 ): {
   insights: Insight[];
   deliveries: CommDelivery[];
   logs: PipelineLogEntry[];
 } {
-  const insights = evaluateTickAgainstPortfolio(tick, positions, prices);
+  const insights = evaluateTickAgainstPortfolio(tick, positions, prices, bookMeta);
   const deliveries: CommDelivery[] = [];
   for (const ins of insights) {
     deliveries.push(...insightToDeliveries(ins));
@@ -53,6 +63,9 @@ export function pushDemoTick(input: {
   prices: Record<string, number>;
   positions: Position[];
   rotateIndex: number;
+  bookId: string;
+  bookLabel?: string;
+  rotateSymbols?: string[];
 }): {
   rotateIndex: number;
   tick: MarketTick;
@@ -61,7 +74,10 @@ export function pushDemoTick(input: {
   deliveries: CommDelivery[];
   logs: PipelineLogEntry[];
 } {
-  const symbols = Object.keys(input.prices);
+  const symbols =
+    input.rotateSymbols?.filter((s) => s in input.prices).length
+      ? input.rotateSymbols!.filter((s) => s in input.prices)
+      : Object.keys(input.prices);
   const logs: PipelineLogEntry[] = [];
   if (!symbols.length) {
     return {
@@ -94,7 +110,15 @@ export function pushDemoTick(input: {
     ts: tick.ts,
   });
 
-  const downstream = runDownstreamPipeline(tick, input.positions, prices);
+  const downstream = runDownstreamPipeline(
+    tick,
+    input.positions,
+    evalPricesForBook(input.bookId, prices),
+    {
+      bookId: input.bookId,
+      bookLabel: input.bookLabel,
+    },
+  );
   logs.push(...downstream.logs);
 
   return {
@@ -114,6 +138,8 @@ export function ingestExternalTick(input: {
   volume?: number;
   prices: Record<string, number>;
   positions: Position[];
+  bookId: string;
+  bookLabel?: string;
 }): {
   tick: MarketTick;
   prices: Record<string, number>;
@@ -145,7 +171,15 @@ export function ingestExternalTick(input: {
     },
   ];
 
-  const downstream = runDownstreamPipeline(tick, input.positions, prices);
+  const downstream = runDownstreamPipeline(
+    tick,
+    input.positions,
+    evalPricesForBook(input.bookId, prices),
+    {
+      bookId: input.bookId,
+      bookLabel: input.bookLabel,
+    },
+  );
   logs.push(...downstream.logs);
 
   return {

@@ -52,14 +52,14 @@ export function concentrationRisk(positions: Position[], prices: Record<string, 
 export function fakeNewsLinks(seedCount = 2): SavedNewsLink[] {
   const templates: Pick<SavedNewsLink, "title" | "url" | "preview">[] = [
     {
-      title: "Tóm tắt demo: biến động nhóm tiêu dùng",
-      url: "https://example.com/news/1",
-      preview: "Đoạn xem trước ngắn: nhóm tiêu dùng biến động trong phiên demo.",
+      title: "VNM: tóm tắt demo biến động nhóm tiêu dùng",
+      url: "https://example.com/news/vnm-1",
+      preview: "Đoạn xem trước ngắn: VNM và nhóm tiêu dùng biến động trong phiên demo.",
     },
     {
-      title: "Demo link: thanh khoản ngân hàng",
-      url: "https://example.com/news/2",
-      preview: "Preview: dòng tiền & thanh khoản (nội dung mẫu).",
+      title: "Demo link FPT — thanh khoản công nghệ",
+      url: "https://example.com/news/fpt-2",
+      preview: "Preview FPT: dòng tiền & thanh khoản (nội dung mẫu).",
     },
   ];
   return templates.slice(0, seedCount).map((t, i) => ({

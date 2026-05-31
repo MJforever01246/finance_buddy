@@ -8,13 +8,14 @@ import {
   importPortfolioDemo,
   loadVpsFullBoard,
   pushManualTick,
+  setActiveBookId,
   toggleAutoTicker,
 } from "@/stores/demoSlice";
 import { useAppDispatch, useAppSelector } from "@/stores/hooks";
 import { LiveFeedBridge } from "@/components/LiveFeedBridge";
 import { isTauriRuntime } from "@/lib/tauri-env";
-import { DEMO_BOOKS } from "../demoBooks";
-import { summarizeBook } from "../bookMetrics";
+import { DEMO_BOOKS } from "@/lib/insight/demoBooks";
+import { filterInsightsForBook, summarizeBook } from "@/lib/insight/bookMetrics";
 import { FireAntTopNav } from "./FireAntTopNav";
 import { FireAntIndexStrip } from "./FireAntIndexStrip";
 import { FireAntMainGrid, type MainView } from "./FireAntMainGrid";
@@ -36,21 +37,33 @@ function AutoTickerBridge() {
 export function FireAntInsightShell() {
   const dispatch = useAppDispatch();
   const { setTheme } = useTheme();
-  const [activeBookId, setActiveBookId] = useState("own");
   const [mainView, setMainView] = useState<MainView>("books");
   const [rail, setRail] = useState<RailId>("books");
 
   const reduxPositions = useAppSelector((s) => s.demo.positions);
   const basePrices = useAppSelector((s) => s.demo.prices);
-  const insights = useAppSelector((s) => s.demo.insights);
+  const allInsights = useAppSelector((s) => s.demo.insights);
+  const activeBookId = useAppSelector((s) => s.demo.activeBookId);
+  const riskPeakByBook = useAppSelector((s) => s.demo.riskPeakByBook);
   const toast = useAppSelector((s) => s.demo.toast);
+  const toastKind = useAppSelector((s) => s.demo.toastKind);
   const autoTickerOn = useAppSelector((s) => s.demo.autoTickerOn);
   const vpsLoading = useAppSelector((s) => s.demo.vpsLoading);
 
-  const activeBook = DEMO_BOOKS.find((b) => b.id === activeBookId) ?? DEMO_BOOKS[0];
+  const activeBook = DEMO_BOOKS.find((b) => b.id === activeBookId) ?? DEMO_BOOKS[0]!;
+  const bookInsights = useMemo(
+    () => filterInsightsForBook(allInsights, activeBookId),
+    [allInsights, activeBookId],
+  );
   const summary = useMemo(
-    () => summarizeBook(activeBook, reduxPositions, basePrices),
-    [activeBook, reduxPositions, basePrices],
+    () =>
+      summarizeBook(
+        activeBook,
+        reduxPositions,
+        basePrices,
+        riskPeakByBook[activeBookId],
+      ),
+    [activeBook, reduxPositions, basePrices, activeBookId, riskPeakByBook],
   );
 
   useEffect(() => {
@@ -61,10 +74,15 @@ export function FireAntInsightShell() {
     if (rail === "insight") setMainView("insight");
     if (rail === "books") setMainView("books");
     if (rail === "scenario") {
-      setActiveBookId("scenario-hpg");
+      dispatch(setActiveBookId("scenario-hpg"));
       setMainView("holdings");
     }
-  }, [rail]);
+  }, [rail, dispatch]);
+
+  const selectBook = (id: string) => {
+    dispatch(setActiveBookId(id));
+    setMainView("holdings");
+  };
 
   return (
     <div className="fireant-shell dark flex h-screen flex-col overflow-hidden">
@@ -81,11 +99,8 @@ export function FireAntInsightShell() {
             activeBookId={activeBookId}
             reduxPositions={reduxPositions}
             basePrices={basePrices}
-            insights={insights}
-            onSelectBook={(id) => {
-              setActiveBookId(id);
-              setMainView("holdings");
-            }}
+            insights={bookInsights}
+            onSelectBook={selectBook}
           />
 
           <footer
@@ -131,7 +146,7 @@ export function FireAntInsightShell() {
               </button>
             ) : null}
             <span className="ml-auto text-[10px] text-[var(--fa-muted)]">
-              Bố cục FireAnt · một sản phẩm · insight theo danh mục
+              Pipeline insight · sổ «{activeBook.label}»
             </span>
           </footer>
         </div>
@@ -144,8 +159,11 @@ export function FireAntInsightShell() {
           maxSymbol={summary.maxSymbol}
           maxPct={summary.maxPct}
           weights={summary.weights}
-          insights={insights}
+          insights={bookInsights}
           scenarioNote={activeBook.scenarioNote}
+          positions={summary.positions}
+          prices={summary.prices}
+          peakEquity={summary.peakEquity}
         />
 
         <FireAntRightRail active={rail} onSelect={setRail} />
@@ -157,7 +175,9 @@ export function FireAntInsightShell() {
           style={{ borderColor: "var(--fa-border)", background: "var(--fa-surface)" }}
           role="alert"
         >
-          <p className="text-[10px] font-semibold text-[var(--fa-accent)]">Smart alert</p>
+          <p className="text-[10px] font-semibold text-[var(--fa-accent)]">
+            {toastKind === "risk" ? "Cảnh báo rủi ro" : "Smart alert"}
+          </p>
           <p className="mt-0.5 text-[11px]">{toast}</p>
           <button
             type="button"

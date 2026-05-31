@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   addNewsClip,
   addNewsDemo,
@@ -9,9 +9,19 @@ import {
 } from "@/stores/demoSlice";
 import { useAppDispatch, useAppSelector } from "@/stores/hooks";
 
+function newsMatchesPortfolio(
+  item: { title: string; preview?: string; url: string },
+  symbols: string[],
+): boolean {
+  if (!symbols.length) return true;
+  const hay = `${item.title} ${item.preview ?? ""} ${item.url}`.toUpperCase();
+  return symbols.some((s) => hay.includes(s));
+}
+
 export function NewsClipPanel() {
   const dispatch = useAppDispatch();
   const newsLinks = useAppSelector((s) => s.demo.newsLinks);
+  const positions = useAppSelector((s) => s.demo.positions);
 
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -19,6 +29,17 @@ export function NewsClipPanel() {
   const [bulkText, setBulkText] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  const [portfolioOnly, setPortfolioOnly] = useState(false);
+
+  const portfolioSymbols = useMemo(
+    () => positions.map((p) => p.symbol),
+    [positions],
+  );
+
+  const visibleNews = useMemo(() => {
+    if (!portfolioOnly) return newsLinks;
+    return newsLinks.filter((n) => newsMatchesPortfolio(n, portfolioSymbols));
+  }, [newsLinks, portfolioOnly, portfolioSymbols]);
 
   async function copyText(text: string, id: string) {
     try {
@@ -35,7 +56,18 @@ export function NewsClipPanel() {
   return (
     <div className="flex h-full min-h-[280px] flex-col rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm">
       <div className="border-b border-[var(--border)] px-4 py-3">
-        <h2 className="text-sm font-semibold text-[var(--text)]">Tin — link & xem trước</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-[var(--text)]">Tin — link & xem trước</h2>
+          <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-[var(--muted)]">
+            <input
+              type="checkbox"
+              checked={portfolioOnly}
+              onChange={(e) => setPortfolioOnly(e.target.checked)}
+              className="rounded border-[var(--border)]"
+            />
+            Chỉ tin liên quan PF ({portfolioSymbols.join(", ") || "—"})
+          </label>
+        </div>
         <p className="mt-0.5 text-xs text-[var(--muted)]">
           Một dòng một link; hoặc{" "}
           <code className="rounded bg-[var(--surface-2)] px-1">URL | tiêu đề | preview</code> / tab
@@ -168,7 +200,7 @@ export function NewsClipPanel() {
       {hint ? <p className="px-4 py-1 text-xs text-emerald-600 dark:text-emerald-400">{hint}</p> : null}
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-        {newsLinks.map((n) => (
+        {visibleNews.map((n) => (
           <article
             key={n.id}
             className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 shadow-sm"
@@ -197,8 +229,12 @@ export function NewsClipPanel() {
             ) : null}
           </article>
         ))}
-        {!newsLinks.length ? (
-          <p className="text-center text-sm text-[var(--muted)]">Chưa có tin — lưu clip hoặc tin demo.</p>
+        {!visibleNews.length ? (
+          <p className="text-center text-sm text-[var(--muted)]">
+            {portfolioOnly
+              ? "Không có tin khớp mã trong danh mục — thử tắt lọc hoặc thêm tin có tên mã."
+              : "Chưa có tin — lưu clip hoặc tin demo."}
+          </p>
         ) : null}
       </div>
     </div>

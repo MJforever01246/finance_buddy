@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import { concentrationRisk } from "@/lib/layers/data";
 import { fmtVi } from "@/lib/vps/formatVi";
-import { DEMO_BOOKS, type DemoBook } from "../demoBooks";
-import { bookPositions, pricesForBook, summarizeBook } from "../bookMetrics";
+import { DEMO_BOOKS, type DemoBook } from "@/lib/insight/demoBooks";
+import { bookPositions, pricesForBook, summarizeBook } from "@/lib/insight/bookMetrics";
 
 export type MainView = "books" | "holdings" | "insight";
 
@@ -202,7 +202,7 @@ export function FireAntMainGrid({
               ) : (
                 <tr>
                   <td colSpan={4} className="fa-cell py-8 text-center text-[var(--fa-muted)]">
-                    Chưa có — Mô phỏng tick hoặc Live.
+                    Chưa có insight cho sổ này — Tick / Live hoặc đổi sổ danh mục.
                   </td>
                 </tr>
               )}

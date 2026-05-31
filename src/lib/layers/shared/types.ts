@@ -31,6 +31,8 @@ export interface Insight {
   relatedSymbols: string[];
   ts: number;
   sourceTick?: MarketTick;
+  /** Sổ danh mục insight áp dụng (`own`, `client-a`, …) */
+  bookId?: string;
 }
 
 export interface CommDelivery {
