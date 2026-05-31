@@ -52,6 +52,10 @@ export function ChartDebugPanel() {
           <Row k="Bar dates" v={`${snap.firstBarTime ?? "—"} … ${snap.lastBarTime ?? "—"}`} />
           <Row k="Chi tiết" v={snap.detail || "—"} />
           {snap.error && <Row k="Lỗi" v={snap.error} highlight />}
+          <Row
+            k="Console"
+            v="F12 → filter [TV datafeed] · widget debug=dev"
+          />
           {snap.at && <Row k="Cập nhật" v={snap.at.slice(11, 19)} />}
         </dl>
       )}

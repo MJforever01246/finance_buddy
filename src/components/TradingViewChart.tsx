@@ -1,168 +1,202 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTheme } from "next-themes";
 import { useAppSelector } from "@/stores/hooks";
 import { createCustomDatafeed } from "@/lib/chart/datafeed";
+import { resolveCompanyName } from "@/lib/chart/resolve-symbol";
+import {
+  applyDefaultStudies,
+  buildTradingViewWidgetOptions,
+  TV_DARK,
+} from "@/lib/chart/tv-config";
+import { ensureTradingViewLibrary } from "@/lib/chart/load-tradingview";
+import { tvError, tvLog } from "@/lib/chart/tv-log";
+import type { SupportedLineTools, TvWidgetApi } from "@/lib/chart/tv-widget-types";
 import { isTauriRuntime } from "@/lib/tauri-env";
+import { ChartAnalysisPanel } from "./ChartAnalysisPanel";
 import { ChartDebugPanel } from "./ChartDebugPanel";
-
-declare global {
-  interface Window {
-    TradingView: {
-      widget: new (config: Record<string, unknown>) => TvWidget;
-    };
-  }
-}
-
-interface TvWidget {
-  onChartReady: (cb: () => void) => void;
-  remove: () => void;
-  activeChart: () => { setTimezone: (tz: string) => void };
-}
-
-function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve();
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error(`Failed to load ${src}`));
-    document.head.appendChild(s);
-  });
-}
+import { ChartMeasureToolbar } from "./ChartMeasureToolbar";
 
 export function TradingViewChart() {
-  const { resolvedTheme } = useTheme();
   const selectedSymbol = useAppSelector((s) => s.demo.selectedSymbol);
   const [ready, setReady] = useState(false);
+  const [chartReady, setChartReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const widgetRef = useRef<TvWidget | null>(null);
+  const [companyName, setCompanyName] = useState<string>("");
+  const widgetRef = useRef<TvWidgetApi | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const symbolRef = useRef(selectedSymbol || "ACB");
 
   const symbol = selectedSymbol || "ACB";
-  const isDark = resolvedTheme === "dark";
 
   useEffect(() => {
     let cancelled = false;
+    void resolveCompanyName(symbol).then((name) => {
+      if (!cancelled) setCompanyName(name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol]);
 
+  useEffect(() => {
+    let cancelled = false;
     async function init() {
       try {
-        await loadScript("/chart/charting_library/charting_library.min.js");
+        await ensureTradingViewLibrary();
         if (cancelled) return;
         setReady(true);
       } catch (e) {
+        tvError("loadScript failed", e);
         setError(e instanceof Error ? e.message : "Không load được TradingView library");
       }
     }
-
     void init();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  /** Tạo widget một lần — tránh destroy/recreate làm hỏng container. */
   useEffect(() => {
-    if (!ready || !containerRef.current) return;
-    if (!window.TradingView) return;
+    if (!ready || !containerRef.current || !window.TradingView) return;
+    if (widgetRef.current) return;
 
-    if (widgetRef.current) {
-      try { widgetRef.current.remove(); } catch { /* ignore */ }
-      widgetRef.current = null;
+    const el = containerRef.current;
+    el.innerHTML = "";
+
+    const datafeed = createCustomDatafeed();
+    const options = buildTradingViewWidgetOptions({
+      symbol: symbolRef.current,
+      palette: TV_DARK,
+      datafeed,
+    });
+
+    tvLog("widget create (once)", { symbol: symbolRef.current });
+
+    try {
+      const widget = new window.TradingView.widget(options);
+      widget.onChartReady(() => {
+        tvLog("onChartReady");
+        setChartReady(true);
+        setError(null);
+        try {
+          const chart = widget.activeChart();
+          chart.setTimezone("Asia/Bangkok");
+          window.setTimeout(() => applyDefaultStudies(chart), 400);
+        } catch (e) {
+          tvError("onChartReady setup", e);
+        }
+      });
+      widgetRef.current = widget;
+    } catch (e) {
+      tvError("widget constructor", e);
+      setError(e instanceof Error ? e.message : "Không tạo được widget TradingView");
     }
 
-    const bgColor = isDark ? "#0a0e14" : "#ffffff";
-    const gridColor = isDark ? "#1e293b" : "#e2e8f0";
-    const textColor = isDark ? "#94a3b8" : "#555555";
-
-    const widget = new window.TradingView.widget({
-      symbol: symbol,
-      interval: "D",
-      timezone: "Asia/Bangkok",
-      container_id: "tv_chart_container",
-      datafeed: createCustomDatafeed(),
-      library_path: "/chart/charting_library/",
-      locale: "vi",
-      fullscreen: false,
-      autosize: true,
-      disabled_features: [
-        "use_localstorage_for_settings",
-        "go_to_date",
-        "header_symbol_search",
-        "study_templates",
-      ],
-      enabled_features: [
-        "move_logo_to_main_pane",
-      ],
-      toolbar_bg: bgColor,
-      overrides: {
-        "paneProperties.background": bgColor,
-        "paneProperties.vertGridProperties.color": gridColor,
-        "paneProperties.horzGridProperties.color": gridColor,
-        "symbolWatermarkProperties.transparency": 1,
-        "scalesProperties.textColor": textColor,
-        "scalesProperties.scaleSeriesOnly": false,
-        "scalesProperties.showSeriesLastValue": true,
-        "scalesProperties.showSeriesPrevCloseValue": false,
-        "scalesProperties.showStudyLastValue": false,
-        "scalesProperties.showStudyPlotLabels": false,
-        "scalesProperties.showSymbolLabels": false,
-        "mainSeriesProperties.candleStyle.upColor": "#4ade80",
-        "mainSeriesProperties.candleStyle.downColor": "#f87171",
-        "mainSeriesProperties.candleStyle.borderUpColor": "#4ade80",
-        "mainSeriesProperties.candleStyle.borderDownColor": "#f87171",
-        "mainSeriesProperties.candleStyle.wickUpColor": "#4ade80",
-        "mainSeriesProperties.candleStyle.wickDownColor": "#f87171",
-      },
-      time_frames: [
-        { text: "1D", resolution: "D", description: "1 ngày", title: "1D" },
-        { text: "1W", resolution: "W", description: "1 tuần", title: "1W" },
-        { text: "1M", resolution: "M", description: "1 tháng", title: "1M" },
-      ],
-      client_id: "finance-buddy",
-      user_id: "local_user",
-      width: "100%",
-    });
-
-    widget.onChartReady(() => {
-      widget.activeChart().setTimezone("Asia/Bangkok");
-    });
-
-    widgetRef.current = widget;
-
     return () => {
+      setChartReady(false);
       if (widgetRef.current) {
-        try { widgetRef.current.remove(); } catch { /* ignore */ }
+        try {
+          widgetRef.current.remove();
+        } catch {
+          /* ignore */
+        }
         widgetRef.current = null;
       }
+      el.innerHTML = "";
     };
-  }, [ready, symbol, isDark]);
+  }, [ready]);
+
+  /** Đổi mã — dùng setSymbol, không recreate widget. */
+  useEffect(() => {
+    if (!chartReady || !widgetRef.current) return;
+    if (symbolRef.current === symbol) return;
+
+    symbolRef.current = symbol;
+    tvLog("setSymbol", { symbol });
+
+    try {
+      widgetRef.current.setSymbol(symbol, "D", () => {
+        tvLog("setSymbol done", { symbol });
+      });
+    } catch (e) {
+      tvError("setSymbol", e);
+    }
+  }, [symbol, chartReady]);
+
+  useEffect(() => {
+    if (!ready || chartReady) return;
+    const t = window.setTimeout(() => {
+      if (!chartReady) {
+        setError((prev) =>
+          prev ??
+          "Chart chưa sẵn sàng sau 20s — mở F12, filter [TV datafeed], xem getBars/resolveSymbol.",
+        );
+      }
+    }, 20000);
+    return () => window.clearTimeout(t);
+  }, [ready, chartReady, symbol]);
+
+  const selectTool = (tool: SupportedLineTools) => {
+    try {
+      widgetRef.current?.selectLineTool(tool);
+    } catch (e) {
+      tvError("selectLineTool", e);
+    }
+  };
+
+  const onMagnet = () => {
+    try {
+      widgetRef.current?.activeChart().executeActionById?.("magnetAction");
+    } catch (e) {
+      tvError("magnetAction", e);
+    }
+  };
+
+  const onResetDrawings = () => {
+    try {
+      widgetRef.current?.activeChart().removeAllShapes?.();
+    } catch (e) {
+      tvError("removeAllShapes", e);
+    }
+  };
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-2.5">
-        <h3 className="text-sm font-semibold text-[var(--text)]">
-          Biểu đồ kỹ thuật
-        </h3>
-        <span className="rounded bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-300">
+    <div className="overflow-hidden rounded-xl border border-[#363c4e] bg-[#131722] shadow-lg">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#363c4e] px-4 py-2.5">
+        <h3 className="text-sm font-semibold text-[#d1d4dc]">Biểu đồ kỹ thuật</h3>
+        <span className="max-w-[min(100%,420px)] truncate text-xs text-[#787b86]">
+          {companyName || symbol} · 1D · HOSE
+        </span>
+        <span className="rounded bg-[#2a2e39] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#2962ff]">
           {symbol}
         </span>
-        <span className="text-[10px] text-[var(--muted)]">
-          TradingView · {isTauriRuntime() ? "VPS Live" : "Dữ liệu mẫu"}
+        <span className="text-[10px] text-[#787b86]">
+          TradingView · {isTauriRuntime() ? "VPS / SQLite" : "JSON mẫu"}
         </span>
+        {!chartReady && ready && (
+          <span className="ml-auto text-[10px] text-[#787b86]">Đang tải chart…</span>
+        )}
       </div>
-      {error && (
-        <div className="px-4 py-3 text-sm text-rose-600 dark:text-rose-400">
-          {error}
-        </div>
-      )}
+
+      <ChartMeasureToolbar
+        disabled={!chartReady}
+        onSelectTool={selectTool}
+        onMagnet={onMagnet}
+        onResetDrawings={onResetDrawings}
+      />
+
+      {error && <div className="px-4 py-3 text-sm text-rose-400">{error}</div>}
+
       <div
         ref={containerRef}
         id="tv_chart_container"
-        className="w-full"
-        style={{ height: "520px" }}
+        className="w-full min-h-[560px]"
+        style={{ height: "560px" }}
       />
+
+      <ChartAnalysisPanel />
       <ChartDebugPanel />
     </div>
   );

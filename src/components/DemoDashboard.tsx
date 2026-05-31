@@ -14,7 +14,6 @@ import {
 } from "@/stores/demoSlice";
 import { useAppDispatch, useAppSelector } from "@/stores/hooks";
 import { AllStocksBoard } from "./AllStocksBoard";
-import { ChartsIndicatorsPanel } from "./ChartsIndicatorsPanel";
 import { DesktopPing } from "./DesktopPing";
 import { LiveFeedBridge } from "./LiveFeedBridge";
 import { VpsPriceBoard } from "./VpsPriceBoard";
@@ -172,10 +171,7 @@ export function DemoDashboard() {
 
         <ChartSection />
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <ChartsIndicatorsPanel />
-          <NewsClipPanel />
-        </div>
+        <NewsClipPanel />
 
         <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] open:shadow-sm">
           <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-[var(--text)]">

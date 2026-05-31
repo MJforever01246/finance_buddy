@@ -8,12 +8,23 @@ import type { ChartDataSource } from "@/lib/chart/debug";
 import { isTauriRuntime } from "@/lib/tauri-env";
 
 export type ChartBar = {
+  /** Unix milliseconds — nội bộ app. */
   time: number;
   open: number;
   high: number;
   low: number;
   close: number;
   volume: number;
+};
+
+/** Bar format TradingView Advanced Charts (time = ms, xem UDF history-provider). */
+export type TradingViewBar = {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
 };
 
 export type OhlcvRaw = {
@@ -111,6 +122,69 @@ export function recentBars(bars: ChartBar[], limit = 500): ChartBar[] {
   return bars.slice(-limit);
 }
 
+export function sliceChartBars(
+  bars: ChartBar[],
+  fromSec: number,
+  toSec: number,
+): ChartBar[] {
+  const filtered = filterBarsByRange(bars, fromSec, toSec);
+  return filtered.length > 0 ? filtered : recentBars(bars);
+}
+
+/** Cache OHLCV đầy đủ — 1 request API / symbol+resolution / session. */
+type FullBarsCacheEntry = {
+  promise?: Promise<FetchBarsResult>;
+  result?: FetchBarsResult;
+};
+
+const fullBarsCache = new Map<string, FullBarsCacheEntry>();
+
+function fullBarsCacheKey(symbol: string, resolution: string): string {
+  return `${symbol.toUpperCase()}:${resolution.trim().toUpperCase()}`;
+}
+
+export function invalidateChartBarsCache(symbol?: string) {
+  if (!symbol) {
+    fullBarsCache.clear();
+    return;
+  }
+  const prefix = `${symbol.toUpperCase()}:`;
+  for (const key of fullBarsCache.keys()) {
+    if (key.startsWith(prefix)) fullBarsCache.delete(key);
+  }
+}
+
+/** Tải toàn bộ lịch sử một lần (dedupe in-flight). */
+export async function loadChartBarsFull(
+  symbol: string,
+  resolution = "D",
+): Promise<FetchBarsResult> {
+  const key = fullBarsCacheKey(symbol, resolution);
+  const hit = fullBarsCache.get(key);
+  if (hit?.result) return hit.result;
+  if (hit?.promise) return hit.promise;
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const fromSec = nowSec - 86400 * 365 * 5;
+
+  const promise = fetchChartBarsRaw(symbol, resolution, fromSec, nowSec).then((result) => {
+    const entry = fullBarsCache.get(key);
+    if (entry) entry.result = result;
+    return result;
+  });
+
+  fullBarsCache.set(key, { promise });
+  try {
+    return await promise;
+  } catch (e) {
+    fullBarsCache.delete(key);
+    throw e;
+  } finally {
+    const entry = fullBarsCache.get(key);
+    if (entry) delete entry.promise;
+  }
+}
+
 async function fetchFromTauri(
   symbol: string,
   resolution: string,
@@ -152,8 +226,34 @@ async function fetchFromTauri(
   }
 }
 
-/** Lấy bars — cùng nguồn với TradingView datafeed. */
+/** Lấy bars — dùng cache; from/to chỉ slice client-side (không gọi lại API). */
 export async function fetchChartBars(
+  symbol: string,
+  resolution = "D",
+  fromSec?: number,
+  toSec?: number,
+): Promise<FetchBarsResult> {
+  const full = await loadChartBarsFull(symbol, resolution);
+  if (full.bars.length === 0) return full;
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const from = Number.isFinite(fromSec) ? Math.trunc(fromSec!) : nowSec - 86400 * 365 * 3;
+  const to = Number.isFinite(toSec) ? Math.trunc(toSec!) : nowSec;
+
+  const bars = sliceChartBars(full.bars, from, to);
+  const sliced = bars.length !== full.bars.length;
+  return {
+    bars,
+    source: full.source,
+    detail: sliced
+      ? `${full.detail} · cache slice ${bars.length}/${full.bars.length}`
+      : `${full.detail} · cache`,
+    error: full.error,
+  };
+}
+
+/** Gọi API thật (SQLite/VPS/JSON) — không cache, dùng nội bộ. */
+async function fetchChartBarsRaw(
   symbol: string,
   resolution = "D",
   fromSec?: number,
@@ -220,6 +320,20 @@ export async function fetchChartBars(
     source: "json",
     detail: `JSON ${bars.length}/${allBars.length} trong range`,
   };
+}
+
+/** TradingView Advanced Charts: time phải là Unix ms, bars tăng dần theo time. */
+export function toTradingViewBars(bars: ChartBar[]): TradingViewBar[] {
+  return [...bars]
+    .sort((a, b) => a.time - b.time)
+    .map((b) => ({
+      time: b.time,
+      open: b.open,
+      high: b.high,
+      low: b.low,
+      close: b.close,
+      volume: b.volume,
+    }));
 }
 
 /** Lightweight Charts: time = Unix seconds (UTCTimestamp). */
