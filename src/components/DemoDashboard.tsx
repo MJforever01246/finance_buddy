@@ -6,7 +6,6 @@ import {
   clearLog,
   dismissToast,
   fetchVpsStockData,
-  importPortfolioDemo,
   loadIndayBoard,
   loadVpsFullBoard,
   pushManualTick,
@@ -22,6 +21,7 @@ import { NewsClipPanel } from "./NewsClipPanel";
 import { SymbolDetailPanel } from "./SymbolDetailPanel";
 import { ChartSection } from "./ChartSection";
 import { DashboardRiskPanel } from "./DashboardRiskPanel";
+import { PortfolioPanel } from "./PortfolioPanel";
 
 const layerBadge: Record<string, string> = {
   data: "bg-emerald-500/15 text-emerald-800 ring-emerald-500/25 dark:text-emerald-300 dark:ring-emerald-500/30",
@@ -97,9 +97,6 @@ export function DemoDashboard() {
               >
                 {autoTickerOn ? "Dừng auto" : "Auto"}
               </button>
-              <button type="button" onClick={() => dispatch(importPortfolioDemo())} className="fb-toolbar-btn">
-                Import PF
-              </button>
               <button type="button" onClick={() => dispatch(addNewsDemo())} className="fb-toolbar-btn">
                 Tin demo
               </button>
@@ -150,6 +147,8 @@ export function DemoDashboard() {
         <DesktopPing />
 
         <DashboardRiskPanel />
+
+        <PortfolioPanel />
 
         <BoardSection />
 

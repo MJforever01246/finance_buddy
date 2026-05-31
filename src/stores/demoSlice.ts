@@ -13,11 +13,20 @@ import type {
   SavedNewsLink,
 } from "@/lib/layers/types";
 import { fetchIndaySnapshot, type IndayDataset } from "@/lib/inday/loadIndaySnapshot";
+import { parseNewsImportBlock } from "@/lib/news-import";
 import { resolveBookContext } from "@/lib/insight/bookMetrics";
 import { DEMO_BOOKS, isDemoBookId } from "@/lib/insight/demoBooks";
 import { portfolioPnL } from "@/lib/layers/data";
 import { buildPortfolioRiskReport } from "@/lib/risk/report";
 import { isTauriRuntime } from "@/lib/tauri-env";
+import { fetchLastClosePrices } from "@/lib/portfolio/fetchPrices";
+import {
+  mergePortfolioLines,
+  mergePositions,
+  parsePortfolioBlock,
+  type ParsedPortfolioLine,
+} from "@/lib/portfolio/parsePortfolio";
+import { portfolioTotals } from "@/lib/portfolio/metrics";
 import { buildSymbolCsv, normalizeVpsQuotesJson } from "@/lib/vps/normalize";
 import { parseStockRowsJson } from "@/lib/vps/parseVpsBoard";
 import { parseUniverseJson } from "@/lib/vps/parseUniverse";
@@ -286,6 +295,63 @@ export const loadIndayBoard = createAsyncThunk(
   },
 );
 
+export const importPortfolioWithPrices = createAsyncThunk(
+  "demo/importPortfolioWithPrices",
+  async (
+    arg: {
+      text?: string;
+      positions?: ParsedPortfolioLine[];
+      mode: "replace" | "merge";
+    },
+    { rejectWithValue },
+  ) => {
+    const parsed = arg.positions?.length
+      ? {
+          positions: mergePortfolioLines(arg.positions),
+          errors: [] as string[],
+          skipped: 0,
+        }
+      : parsePortfolioBlock(arg.text ?? "");
+    if (!parsed.positions.length) {
+      return rejectWithValue(
+        parsed.errors[0] ?? "Không parse được dòng danh mục hợp lệ.",
+      );
+    }
+
+    const syms = parsed.positions.map((p) => p.symbol);
+    const csv = syms.join(",");
+    let priceUpdates: Record<string, number> = {};
+
+    if (isTauriRuntime()) {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const raw = await invoke<string>("vps_get_stock_data", { symbols: csv });
+        priceUpdates = normalizeVpsQuotesJson(raw);
+        const boardChunk = parseStockRowsJson(raw);
+        for (const [sym, row] of Object.entries(boardChunk)) {
+          if (row.matchP > 0) priceUpdates[sym] = row.matchP;
+        }
+      } catch {
+        /* fallback OHLCV bên dưới */
+      }
+    }
+
+    const missing = syms.filter((s) => !(priceUpdates[s] && priceUpdates[s] > 0));
+    if (missing.length) {
+      const fallback = await fetchLastClosePrices(missing);
+      priceUpdates = { ...priceUpdates, ...fallback };
+    }
+
+    return {
+      positions: parsed.positions,
+      mode: arg.mode,
+      priceUpdates,
+      parseErrors: parsed.errors,
+      skipped: parsed.skipped,
+    };
+  },
+);
+
 export const loadVpsFullBoard = createAsyncThunk(
   "demo/loadVpsFullBoard",
   async (_, { rejectWithValue }) => {
@@ -347,9 +413,9 @@ const demoSlice = createSlice({
 
     importPortfolioDemo: (state) => {
       state.positions = [
-        { symbol: "VNM", qty: 200, avgCost: 60 },
-        { symbol: "FPT", qty: 80, avgCost: 112 },
-        { symbol: "VCB", qty: 40, avgCost: 58 },
+        { symbol: "VNM", qty: 200, avgCost: 60000 },
+        { symbol: "FPT", qty: 80, avgCost: 112000 },
+        { symbol: "VCB", qty: 40, avgCost: 58000 },
       ];
       state.pipelineLog = [
         {
@@ -361,6 +427,44 @@ const demoSlice = createSlice({
         ...state.pipelineLog,
       ].slice(0, MAX_LOG);
       touchBookPeaks(state);
+    },
+
+    importPortfolio: (
+      state,
+      action: PayloadAction<{
+        positions: Position[];
+        mode: "replace" | "merge";
+      }>,
+    ) => {
+      state.positions = mergePositions(
+        state.positions,
+        action.payload.positions,
+        action.payload.mode,
+      );
+      touchBookPeaks(state);
+    },
+
+    createWatchlistFromPortfolio: (
+      state,
+      action: PayloadAction<{ name?: string }>,
+    ) => {
+      const symbols = Array.from(
+        new Set(state.positions.map((p) => p.symbol.toUpperCase())),
+      );
+      if (!symbols.length) return;
+      const name = action.payload.name?.trim() || "Danh mục hiện tại";
+      const id = `wl-${Date.now()}`;
+      state.savedWatchlists.push({ id, name, symbols });
+      state.boardWatchlistId = id;
+      state.pipelineLog = [
+        {
+          layer: "data" as LayerId,
+          kind: "watchlist.from-portfolio",
+          message: `Watchlist «${name}» từ ${symbols.length} mã danh mục`,
+          ts: Date.now(),
+        },
+        ...state.pipelineLog,
+      ].slice(0, MAX_LOG);
     },
 
     addNewsDemo: (state) => {
@@ -723,6 +827,43 @@ const demoSlice = createSlice({
           typeof action.payload === "string"
             ? action.payload
             : String(action.error.message ?? "Lỗi snapshot offline");
+      })
+      .addCase(importPortfolioWithPrices.pending, (state) => {
+        state.vpsLoading = true;
+        state.vpsError = null;
+      })
+      .addCase(importPortfolioWithPrices.fulfilled, (state, action) => {
+        state.vpsLoading = false;
+        const { positions, mode, priceUpdates } = action.payload;
+        state.positions = mergePositions(state.positions, positions, mode);
+        state.prices = { ...state.prices, ...priceUpdates };
+        touchBookPeaks(state);
+
+        const totals = portfolioTotals(state.positions, state.prices);
+        const pnlSign = totals.pnlAbs >= 0 ? "+" : "";
+        state.toast = [
+          `Import ${positions.length} mã`,
+          `Giá trị ${Math.round(totals.market / 1e6)}M`,
+          `L/L ${pnlSign}${totals.pnlPct.toFixed(1)}%`,
+        ].join(" · ");
+        state.toastKind = "info";
+
+        state.pipelineLog = [
+          {
+            layer: "data" as LayerId,
+            kind: "portfolio.import",
+            message: `Import ${positions.length} mã (${mode}) · NAV ${Math.round(totals.market).toLocaleString("vi-VN")} · L/L ${pnlSign}${totals.pnlPct.toFixed(1)}%`,
+            ts: Date.now(),
+          },
+          ...state.pipelineLog,
+        ].slice(0, MAX_LOG);
+      })
+      .addCase(importPortfolioWithPrices.rejected, (state, action) => {
+        state.vpsLoading = false;
+        state.vpsError =
+          typeof action.payload === "string"
+            ? action.payload
+            : String(action.error.message ?? "Lỗi import danh mục");
       });
   },
 });
@@ -732,6 +873,8 @@ export const {
   resetToInitial,
   toggleAutoTicker,
   importPortfolioDemo,
+  importPortfolio,
+  createWatchlistFromPortfolio,
   addNewsDemo,
   addNewsClip,
   setSelectedSymbol,
