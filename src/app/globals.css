@@ -2,34 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Light — kiểu bảng giá web CK (nền sáng, xanh/đỏ rõ) */
+/* Finance Buddy — terminal đầu tư (light) */
 :root {
-  --bg: #eef1f5;
+  --bg: #e8edf2;
   --surface: #ffffff;
-  --surface-2: #f8fafc;
+  --surface-2: #f1f5f9;
   --border: #cbd5e1;
   --muted: #64748b;
   --text: #0f172a;
-  --accent: #2563eb;
+  --accent: #0284c7;
+  --accent-hover: #0369a1;
   --up: #15803d;
   --up-bg: #dcfce7;
   --down: #b91c1c;
   --down-bg: #fee2e2;
+  --nav-h: 3.5rem;
+  --radius-sm: 6px;
+  --radius-md: 10px;
   --header-h: 42px;
 }
 
 .dark {
-  --bg: #0a0e14;
-  --surface: #11161d;
-  --surface-2: #0d1218;
-  --border: #2a3340;
-  --muted: #8b97ab;
-  --text: #e8edf4;
-  --accent: #3b82f6;
+  --bg: #070b10;
+  --surface: #0f1419;
+  --surface-2: #0a0e14;
+  --border: #1e293b;
+  --muted: #94a3b8;
+  --text: #e2e8f0;
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
   --up: #4ade80;
-  --up-bg: rgba(22, 163, 74, 0.15);
+  --up-bg: rgba(22, 163, 74, 0.12);
   --down: #f87171;
-  --down-bg: rgba(220, 38, 38, 0.15);
+  --down-bg: rgba(220, 38, 38, 0.12);
 }
 
 body {
@@ -38,12 +43,123 @@ body {
   color: var(--text);
 }
 
-/* Bảng giá: font số tabular */
+.font-data {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* Thanh kéo panel */
+@layer components {
+  .fb-nav {
+    @apply backdrop-blur-md;
+    border-color: var(--border);
+    background-color: color-mix(in srgb, var(--surface) 95%, transparent);
+  }
+
+  .fb-nav--terminal {
+    background: #0a0e14;
+    border-color: #243044;
+  }
+
+  .fb-nav--terminal a,
+  .fb-nav--terminal span {
+    color: inherit;
+  }
+
+  .fb-panel {
+    @apply rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-sm;
+  }
+
+  .fb-toolbar-btn {
+    @apply inline-flex items-center justify-center rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium transition-colors;
+    @apply text-[var(--text)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)];
+  }
+
+  .fb-toolbar-btn-primary {
+    @apply fb-toolbar-btn border-0 text-white ring-0;
+    background: var(--accent);
+  }
+
+  .fb-toolbar-btn-primary:hover {
+    background: var(--accent-hover);
+  }
+
+  .fb-kpi-label {
+    @apply text-[10px] font-medium uppercase tracking-wide text-[var(--muted)];
+  }
+
+  .fb-kpi-value {
+    @apply font-data text-lg font-semibold text-[var(--text)];
+  }
+
+  .fb-board {
+    @apply flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-2)] text-[10px] text-[var(--text)] shadow-sm;
+  }
+
+  .fb-board-toolbar {
+    @apply flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-2 py-2;
+  }
+
+  .fb-board-input {
+    @apply min-w-[140px] flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1.5 text-[11px] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-1 focus:ring-[color-mix(in_srgb,var(--accent)_50%,transparent)];
+  }
+
+  .fb-board-select {
+    @apply rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1.5 text-[11px] text-[var(--text)];
+  }
+
+  .fb-board-tab {
+    @apply rounded-[var(--radius-sm)] px-2 py-1 text-[10px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)];
+  }
+
+  .fb-board-tab--active {
+    @apply bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] ring-1 ring-[color-mix(in_srgb,var(--accent)_35%,transparent)];
+  }
+
+  .fb-board-th {
+    @apply border border-[var(--border)] bg-[var(--surface)] px-1 py-1 text-[9px] font-semibold uppercase tracking-wide text-[var(--muted)];
+  }
+
+  .fb-board-td {
+    @apply border border-[var(--border)] px-1 py-0.5 font-data tabular-nums;
+  }
+
+  .fb-board-row:hover {
+    @apply bg-[var(--surface)];
+  }
+
+  .fb-board-row--selected {
+    @apply bg-[color-mix(in_srgb,var(--accent)_12%,transparent)];
+  }
+
+  .fb-tone-ceiling {
+    color: #c084fc;
+  }
+
+  .fb-tone-floor {
+    color: #22d3ee;
+  }
+
+  .fb-tone-ref {
+    color: var(--muted);
+  }
+
+  .fb-tone-up {
+    color: var(--up);
+  }
+
+  .fb-tone-down {
+    color: var(--down);
+  }
+
+  .fb-board-match {
+    @apply bg-[color-mix(in_srgb,var(--surface)_85%,var(--bg))];
+  }
+}
+
 .panel-resize {
   @apply w-1.5 shrink-0 cursor-col-resize transition-colors;
   background: var(--border);
@@ -51,5 +167,5 @@ body {
 .panel-resize:hover,
 .panel-resize[data-resize-handle-state="hover"],
 .panel-resize[data-resize-handle-state="drag"] {
-  @apply bg-blue-500/70;
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
 }

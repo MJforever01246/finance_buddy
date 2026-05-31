@@ -5,8 +5,8 @@
   "identifier": "com.financebuddy.demo",
   "build": {
     "frontendDist": "../out",
-    "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:3000",
+    "beforeDevCommand": "node scripts/next-dev.mjs",
     "beforeBuildCommand": "npm run build"
   },
   "app": {

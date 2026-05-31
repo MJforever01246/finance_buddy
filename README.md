@@ -6,7 +6,7 @@ Template minh họa cấu trúc trong `struct.md`: **Data → Intelligence → C
 
 - Theme **Sáng / Tối / Auto** (kiểu bảng giá web CK): toggle trên header.
 - **Bảng giá + chi tiết mã** dùng lưới cố định (tỉ lệ ~1.42 : 0.4 trên màn `xl`) để layout không vỡ.
-- **Chỉ báo & biểu đồ** (MA20, RSI demo) và **Tin** (lưu clip, import nhiều dòng, preview, copy link).
+- **Chỉ báo & biểu đồ** — **TradingView Advanced Charts** (mặc định): OHLCV từ VPS/SQLite/JSON, toolbar đo lường, panel phân tích RSI/MA (demo). Panel Recharts MA/RSI riêng trên dashboard.
 
 ## Dữ liệu lưu ở đâu?
 
@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-Mở [http://localhost:3000](http://localhost:3000).
+Mở URL in ra terminal (mặc định [http://localhost:3000](http://localhost:3000); nếu port bận sẽ tự chọn 3001, 3002, …). Port đang dùng được ghi vào `.dev-port`.
 
 ## Chạy desktop (Tauri)
 
@@ -47,7 +47,7 @@ Lần đầu: `npm install`.
 npm run desktop:dev
 ```
 
-Lệnh này chạy Next dev server và mở cửa sổ desktop trỏ `http://localhost:3000`.
+Lệnh này **tự chọn port trống** (từ 3000), khởi chạy Next dev và mở cửa sổ Tauri trỏ đúng port đó (`src-tauri/tauri.dev.conf.json` merge với `devUrl`).
 
 Build installer / bundle:
 
@@ -64,6 +64,12 @@ Next được build static vào `out/`; Tauri đọc `out/` theo `src-tauri/taur
 - **Import portfolio demo** — portfolio lớn hơn để insight dễ bật.
 - **Lưu tin (demo crawl)** — ghi vào danh sách tin (Data).
 - **Giá VPS** — chỉ trong Tauri: cập nhật `prices` từ API VPS qua Rust.
+- **HOSE/VN30 offline** — snapshot intraday từ `public/data/inday/` (không cần API).
+- **Biểu đồ TradingView** — chọn mã trên bảng giá; OHLCV cache 1 lần/mã; F12 filter `[TV datafeed]` khi debug.
+
+## FinRAG / BCTC (desktop only)
+
+Trang `/bctc` — hỏi đáp báo cáo tài chính qua Tauri (`npm run desktop:dev`). Cần Ollama (`nomic-embed-text`) + `GEMINI_API_KEY`. Xem `.env.local.example`.
 
 ## WebSocket (tùy chọn)
 

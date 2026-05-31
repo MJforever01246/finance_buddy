@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   addNewsDemo,
@@ -8,6 +7,7 @@ import {
   dismissToast,
   fetchVpsStockData,
   importPortfolioDemo,
+  loadIndayBoard,
   loadVpsFullBoard,
   pushManualTick,
   toggleAutoTicker,
@@ -16,11 +16,12 @@ import { useAppDispatch, useAppSelector } from "@/stores/hooks";
 import { AllStocksBoard } from "./AllStocksBoard";
 import { DesktopPing } from "./DesktopPing";
 import { LiveFeedBridge } from "./LiveFeedBridge";
+import { MobileBridgePanel } from "./MobileBridgePanel";
 import { VpsPriceBoard } from "./VpsPriceBoard";
 import { NewsClipPanel } from "./NewsClipPanel";
 import { SymbolDetailPanel } from "./SymbolDetailPanel";
-import { ThemeToggle } from "./ThemeToggle";
 import { ChartSection } from "./ChartSection";
+import { DashboardRiskPanel } from "./DashboardRiskPanel";
 
 const layerBadge: Record<string, string> = {
   data: "bg-emerald-500/15 text-emerald-800 ring-emerald-500/25 dark:text-emerald-300 dark:ring-emerald-500/30",
@@ -49,6 +50,7 @@ export function DemoDashboard() {
   const liveFeedConnected = useAppSelector((s) => s.demo.liveFeedConnected);
   const autoTickerOn = useAppSelector((s) => s.demo.autoTickerOn);
   const toast = useAppSelector((s) => s.demo.toast);
+  const toastKind = useAppSelector((s) => s.demo.toastKind);
   const vpsLoading = useAppSelector((s) => s.demo.vpsLoading);
   const vpsError = useAppSelector((s) => s.demo.vpsError);
 
@@ -60,102 +62,82 @@ export function DemoDashboard() {
       <LiveFeedBridge />
 
       <div className="mx-auto flex w-full max-w-[1680px] flex-1 flex-col gap-4 px-3 py-4 sm:px-4">
-        <header className="flex flex-col gap-3 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-center lg:justify-between">
+        <header className="fb-panel mx-auto mb-1 flex w-full max-w-[1680px] flex-col gap-3 px-4 py-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-              Finance Buddy · bảng điều khiển demo
-            </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text)] sm:text-2xl">
-              Data → Insight → Action
+            <h1 className="text-lg font-semibold tracking-tight text-[var(--text)] sm:text-xl">
+              Trung tâm điều hành
             </h1>
             <p className="mt-1 max-w-xl text-xs leading-relaxed text-[var(--muted)]">
-              State Redux Toolkit; tin &amp; subset giá lưu{" "}
-              <code className="rounded bg-[var(--surface-2)] px-1">localStorage</code>. Giá VPS qua{" "}
-              <code className="rounded bg-[var(--surface-2)] px-1">Tauri invoke</code> (Rust) — xem README.
+              Bảng giá, danh mục, insight và pipeline Data → Intelligence → Communication.
             </p>
           </div>
           <div className="flex flex-col items-stretch gap-2 sm:items-end">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span
-                className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${
+                className={`rounded-md px-2 py-1 text-[10px] font-medium font-data ${
                   liveFeedConnected
-                    ? "border-emerald-500/40 bg-emerald-500/10 text-[var(--up)]"
-                    : "border-[var(--border)] text-[var(--muted)]"
+                    ? "bg-[var(--up-bg)] text-[var(--up)] ring-1 ring-emerald-500/30"
+                    : "bg-[var(--surface-2)] text-[var(--muted)] ring-1 ring-[var(--border)]"
                 }`}
                 title="WebSocket demo-server"
               >
-                WS: {liveFeedConnected ? ":3456" : "tắt"}
+                WS {liveFeedConnected ? ":3456" : "off"}
               </span>
-              <ThemeToggle />
-              <Link
-                href="/insight"
-                className="rounded-lg px-3 py-2 text-xs font-medium text-violet-700 ring-1 ring-violet-500/30 hover:bg-violet-500/10 dark:text-violet-300 sm:text-sm"
-              >
-                Demo sản phẩm
-              </Link>
-              <Link
-                href="/crawl"
-                className="rounded-lg px-3 py-2 text-xs font-medium text-orange-700 ring-1 ring-orange-500/30 hover:bg-orange-500/10 dark:text-orange-300 sm:text-sm"
-              >
-                Data Crawler
-              </Link>
-              <Link
-                href="/bctc"
-                className="rounded-lg px-3 py-2 text-xs font-medium text-teal-800 ring-1 ring-teal-500/30 hover:bg-teal-500/10 dark:text-teal-300 sm:text-sm"
-              >
-                AI · BCTC
-              </Link>
               <button
                 type="button"
                 onClick={() => void dispatch(pushManualTick())}
-                className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-500 sm:text-sm"
+                className="fb-toolbar-btn-primary"
               >
-                Tick tiếp
+                Tick
               </button>
               <button
                 type="button"
                 onClick={() => dispatch(toggleAutoTicker())}
-                className={`rounded-lg px-3 py-2 text-xs font-medium ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)] sm:text-sm ${
-                  autoTickerOn ? "bg-emerald-500/15 text-[var(--up)]" : "text-[var(--text)]"
-                }`}
+                className={`fb-toolbar-btn ${autoTickerOn ? "bg-[var(--up-bg)] text-[var(--up)]" : ""}`}
               >
-                {autoTickerOn ? "Tắt auto" : "Auto ticker"}
+                {autoTickerOn ? "Dừng auto" : "Auto"}
               </button>
-              <button
-                type="button"
-                onClick={() => dispatch(importPortfolioDemo())}
-                className="rounded-lg px-3 py-2 text-xs font-medium text-[var(--text)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)] sm:text-sm"
-              >
+              <button type="button" onClick={() => dispatch(importPortfolioDemo())} className="fb-toolbar-btn">
                 Import PF
               </button>
-              <button
-                type="button"
-                onClick={() => dispatch(addNewsDemo())}
-                className="rounded-lg px-3 py-2 text-xs font-medium text-[var(--text)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)] sm:text-sm"
-              >
+              <button type="button" onClick={() => dispatch(addNewsDemo())} className="fb-toolbar-btn">
                 Tin demo
               </button>
               <button
                 type="button"
                 disabled={vpsLoading}
                 onClick={() => void dispatch(loadVpsFullBoard())}
-                className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-50 sm:text-sm"
+                className="fb-toolbar-btn-primary disabled:opacity-50"
               >
-                {vpsLoading ? "VPS…" : "Tải bảng VPS"}
+                {vpsLoading ? "VPS…" : "Tải VPS"}
+              </button>
+              <button
+                type="button"
+                disabled={vpsLoading}
+                onClick={() => void dispatch(loadIndayBoard("hose"))}
+                className="fb-toolbar-btn disabled:opacity-50"
+                title="Snapshot HOSE offline (test_data_inday)"
+              >
+                HOSE offline
+              </button>
+              <button
+                type="button"
+                disabled={vpsLoading}
+                onClick={() => void dispatch(loadIndayBoard("vn30"))}
+                className="fb-toolbar-btn disabled:opacity-50"
+                title="Snapshot VN30 offline"
+              >
+                VN30 offline
               </button>
               <button
                 type="button"
                 disabled={vpsLoading}
                 onClick={() => void dispatch(fetchVpsStockData())}
-                className="rounded-lg bg-slate-600 px-3 py-2 text-xs font-medium text-white hover:bg-slate-500 disabled:opacity-50 sm:text-sm"
+                className="fb-toolbar-btn disabled:opacity-50"
               >
-                Giá (PF+WL)
+                Giá PF
               </button>
-              <button
-                type="button"
-                onClick={() => dispatch(clearLog())}
-                className="rounded-lg px-3 py-2 text-xs text-[var(--muted)] hover:text-[var(--text)] sm:text-sm"
-              >
+              <button type="button" onClick={() => dispatch(clearLog())} className="fb-toolbar-btn text-[var(--muted)]">
                 Xóa log
               </button>
             </div>
@@ -167,11 +149,15 @@ export function DemoDashboard() {
 
         <DesktopPing />
 
+        <DashboardRiskPanel />
+
         <BoardSection />
 
         <ChartSection />
 
         <NewsClipPanel />
+
+        <MobileBridgePanel />
 
         <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] open:shadow-sm">
           <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-[var(--text)]">
@@ -194,11 +180,29 @@ export function DemoDashboard() {
       </div>
 
       {toast ? (
-        <div className="fixed bottom-5 right-5 z-50 max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg ring-1 ring-black/5 dark:ring-white/10">
+        <div
+          className={`fixed bottom-5 right-5 z-50 max-w-sm rounded-xl border p-4 shadow-lg ring-1 ${
+            toastKind === "risk"
+              ? "border-[var(--down)]/40 bg-[var(--surface)] ring-[var(--down)]/20"
+              : "border-[var(--border)] bg-[var(--surface)] ring-black/5 dark:ring-white/10"
+          }`}
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-600 dark:text-sky-300">
-                Smart alert
+              <p
+                className={`text-[10px] font-semibold uppercase tracking-wide ${
+                  toastKind === "risk"
+                    ? "text-[var(--down)]"
+                    : toastKind === "insight"
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--muted)]"
+                }`}
+              >
+                {toastKind === "risk"
+                  ? "Cảnh báo rủi ro"
+                  : toastKind === "insight"
+                    ? "Smart alert"
+                    : "Thông báo"}
               </p>
               <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--text)]">{toast}</p>
             </div>
@@ -224,13 +228,13 @@ function BoardSection() {
   return (
     <div className="h-[min(65vh,640px)]">
       {/* Board tabs */}
-      <div className="mb-2 flex items-center gap-1">
+      <div className="mb-2 flex items-center gap-1 border-b border-[var(--border)]">
         <button
           type="button"
           onClick={() => setTab("all_stocks")}
-          className={`rounded-t-lg px-4 py-2 text-xs font-semibold transition-colors ${
+          className={`rounded-t-md px-4 py-2 text-xs font-semibold transition-colors ${
             tab === "all_stocks"
-              ? "bg-[#050608] text-amber-300 ring-1 ring-[#1e293b]"
+              ? "border-b-2 border-[var(--accent)] bg-[var(--surface)] text-[var(--accent)]"
               : "text-[var(--muted)] hover:text-[var(--text)]"
           }`}
         >
@@ -239,9 +243,9 @@ function BoardSection() {
         <button
           type="button"
           onClick={() => setTab("vps_board")}
-          className={`rounded-t-lg px-4 py-2 text-xs font-semibold transition-colors ${
+          className={`rounded-t-md px-4 py-2 text-xs font-semibold transition-colors ${
             tab === "vps_board"
-              ? "bg-[#050608] text-amber-300 ring-1 ring-[#1e293b]"
+              ? "border-b-2 border-[var(--accent)] bg-[var(--surface)] text-[var(--accent)]"
               : "text-[var(--muted)] hover:text-[var(--text)]"
           }`}
         >

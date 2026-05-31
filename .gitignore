@@ -30,3 +30,5 @@ src-tauri/gen/
 # Misc
 *.tsbuildinfo
 .turbo
+.dev-port
+src-tauri/tauri.dev.conf.json

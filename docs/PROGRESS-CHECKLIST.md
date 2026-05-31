@@ -1,6 +1,6 @@
 # Finance Buddy Demo — Checklist tiến độ
 
-> Cập nhật: **24/05/2026**  
+> Cập nhật: **31/05/2026** (merge `main` + `main_macos`)  
 > Mục đích: theo dõi những gì **đã làm**, **đang dở**, **chưa làm** — theo tính năng, luồng logic, dữ liệu, giao diện.  
 > Đối chiếu spec sản phẩm: [`struct.md`](../struct.md) · Hướng dẫn chạy: [`README.md`](../README.md)
 
@@ -12,11 +12,15 @@
 |----------|-------------------|---------|
 | Kiến trúc 3 layer + orchestration | **~90%** (demo) | Data → Intelligence → Communication đã nối; chưa AI/OpenAI |
 | State & persistence | **~85%** | Redux Toolkit + `localStorage`; migrate từ Zustand xong |
-| Dashboard chính (`/`) | **~80%** | Mock tick, WS, tin, chart demo, bảng giá VPS |
-| Trang sản phẩm Insight (`/insight`) | **~60%** | UI FireAnt-style, đa danh mục demo; chưa gắn insight thật theo sổ |
-| Dữ liệu VPS thật (Tauri) | **~70%** | Universe + bảng giá; chưa chart TV history trên UI |
+| Dashboard chính (`/`) | **~88%** | Bảng giá, TradingView chart, risk panel, inday offline |
+| Trang sản phẩm Insight (`/insight`) | **~80%** | Pipeline insight theo sổ, risk engine VaR/drawdown |
+| Dữ liệu VPS thật (Tauri) | **~85%** | Universe + bảng giá + TV history (cache session) |
+| Chart / phân tích kỹ thuật | **~75%** | TradingView dark, toolbar đo, RSI/MA demo signal |
 | AI / Python / Kafka / Redis | **~20%** | FinRAG `/bctc` → Rust/Tauri + SQLite + Ollama + Gemini |
-| Mobile bridge / OS notification | **~20%** | Queue `mobile-bridge` trong RAM, chưa gửi thật |
+| Giao diện dashboard & shell | **~85%** | AppNav, design tokens, toolbar chuyên nghiệp |
+| Mobile bridge / OS notification | **~35%** | UI panel `commQueue`; queue RAM, chưa gửi mobile thật |
+| Dev tooling (port, CSS, Tauri dev) | **~85%** | Auto port, sync `devUrl`, fix bootstrap/Tailwind cache |
+| Design system / taste-skill | **~55%** | Skill gốc + `finance-buddy-design`; token CSS, AppNav, `fb-board` trên VPS/SQLite |
 
 **Ký hiệu:** `[x]` xong · `[~]` một phần · `[ ]` chưa làm
 
@@ -30,9 +34,11 @@
 | 1.2 | Orchestrator duy nhất | [x] | `src/lib/orchestration/pipeline.ts` — `pushDemoTick`, `ingestExternalTick` |
 | 1.3 | Quy tắc import một chiều | [x] | data → intelligence → communication |
 | 1.4 | Redux Toolkit thay Zustand | [x] | `demoSlice`, `store`, `hooks`; xóa `demo-store.ts`, `StoreRehydrate` |
-| 1.5 | Next.js static export cho Tauri | [x] | `output: "export"` → `out/` |
+| 1.5 | Next.js static export cho Tauri | [x] | `output: "export"` chỉ khi **production build** → `out/`; dev không bật export (tránh lỗi bootstrap) |
 | 1.6 | Spec sản phẩm đầy đủ | [x] | `struct.md` — vision, persona, stack mục tiêu |
-| 1.7 | SQLite / backend Node riêng | [ ] | Ghi chú trong README — để sau |
+| 1.7 | SQLite / backend Node riêng | [~] | SQLite embedded Tauri (stocks, FinRAG); chưa backend Node riêng |
+| 1.8 | Dev: tự chọn port + đồng bộ Tauri | [x] | `scripts/pick-port.mjs`, `next-dev.mjs`, `desktop-dev.mjs`, `tauri.dev.conf.json` |
+| 1.9 | Design skill + token UI chuyên nghiệp | [~] | `.agents/skills/design-taste-frontend`, `.cursor/skills/finance-buddy-design`, `AppNav`, `globals.css` tokens |
 
 ---
 
@@ -47,9 +53,9 @@
 | 2.1.3 | Tick WebSocket ngoài | [x] | `ingestExternalTick` + `server/demo-ws.mjs` |
 | 2.1.4 | API VPS — danh sách mã | [x] | Rust `vps_get_list_all_stock` → `parseUniverseJson` |
 | 2.1.5 | API VPS — giá nhiều mã | [x] | Rust `vps_get_stock_data` → `parseStockRowsJson`, chunk 42 mã |
-| 2.1.6 | API VPS — TradingView history | [~] | Rust `vps_get_tradingview_history` có; **UI chưa gọi** |
+| 2.1.6 | API VPS — TradingView history | [x] | Rust + UI: `fetchChartBars`, LW/TV chart, chỉ báo panel |
 | 2.1.7 | Realtime streaming VPS | [ ] | Chỉ poll/batch một lần; không websocket VPS |
-| 2.1.8 | `test_data_inday/` (HOSE, VN30) | [ ] | File JS offline — **chưa import vào app** |
+| 2.1.8 | `test_data_inday/` (HOSE, VN30) | [x] | `public/data/inday/*.json`, `loadIndayBoard`, nút HOSE/VN30 offline |
 | 2.1.9 | `data_config/` (stock, market) | [ ] | Metadata sàn/chỉ số — **chưa import vào app** |
 
 ### 2.2 Danh mục & watchlist
@@ -67,12 +73,12 @@
 
 | # | Hạng mục | Trạng thái | Chi tiết |
 |---|----------|------------|----------|
-| 2.3.1 | Lưu link tin (demo crawl) | [x] | `fakeNewsLinks` |
+| 2.3.1 | Lưu link tin (demo crawl) | [x] | `fakeNewsLinks` — title có mã VNM/FPT để test lọc |
 | 2.3.2 | Thêm clip thủ công (url/title/preview) | [x] | `NewsClipPanel`, `addNewsClip` |
 | 2.3.3 | Import bulk (nhiều dòng) | [x] | `parseNewsImportBlock`, `importNewsBulkThunk` |
 | 2.3.4 | Copy link / preview | [x] | Clipboard trong panel |
 | 2.3.5 | Crawl thật (HTTP/scraper) | [ ] | Chỉ demo |
-| 2.3.6 | Lọc tin theo danh mục | [ ] | Chưa có |
+| 2.3.6 | Lọc tin theo danh mục | [x] | Checkbox "Chỉ tin liên quan PF" — `NewsClipPanel` |
 | 2.3.7 | AI tóm tắt tin | [ ] | Chưa có |
 
 ### 2.4 Lưu trữ
@@ -82,7 +88,7 @@
 | 2.4.1 | `localStorage` — giá, portfolio, tin, watchlist, filter bảng | [x] | Key `finance-buddy-demo-v1`, debounce subscribe |
 | 2.4.2 | RAM only — tick, insight, log, comm queue | [x] | Cố ý — F5 mất session pipeline |
 | 2.4.3 | VPS board cache sau refresh | [ ] | `vpsBoardBySymbol` không persist |
-| 2.4.4 | SQLite qua Tauri | [ ] | Backlog |
+| 2.4.4 | SQLite qua Tauri | [x] | Stocks, indices seed; FinRAG tables; TV history cache |
 
 ---
 
@@ -94,12 +100,13 @@
 | 3.2 | Rule: concentration risk | [x] | max weight ≥ 38% + biến động |
 | 3.3 | Rule: drawdown portfolio ≤ −5% | [x] | Cảnh báo rủi ro demo |
 | 3.4 | P/L & concentration helpers | [x] | `portfolioPnL`, `concentrationRisk` |
-| 3.5 | Risk score UI (insight page) | [x] | `bookMetrics.riskScore` — rule đơn giản |
+| 3.5 | Risk score UI (insight page) | [x] | `computeRiskScore`, drawdown-aware |
+| 3.5b | Risk engine (rust-finance port) | [x] | `src/lib/risk/` — VaR, drawdown, correlation, rebalance |
 | 3.6 | Scenario stress (HPG −30%) | [x] | `pricesForBook` — sổ `scenario-hpg` |
-| 3.7 | Insight theo từng sổ danh mục | [~] | Metrics theo sổ có; pipeline insight vẫn theo Redux `positions` |
+| 3.7 | Insight theo từng sổ danh mục | [x] | `activeBookId` Redux, pipeline + filter `/insight` |
 | 3.8 | Phân tích nhóm ngành | [ ] | Chưa có |
 | 3.9 | Rebalance suggestion | [ ] | Chỉ gợi ý text trong struct |
-| 3.10 | OpenAI / NL explanation | [ ] | `summarizeInsightForAiStub` — stub |
+| 3.10 | OpenAI / NL explanation | [~] | `summarizeInsightForAiStub` hiển thị trên insight cards (`SymbolDetailPanel`); chưa gọi API |
 | 3.11 | Expected profit/loss | [ ] | Chưa có |
 
 ---
@@ -110,6 +117,7 @@
 |---|----------|------------|----------|
 | 4.1 | Insight → toast | [x] | `insightToDeliveries` → toast Redux |
 | 4.2 | Insight → mobile-bridge queue | [x] | `commQueue` trong RAM |
+| 4.2b | UI panel mobile-bridge | [x] | `MobileBridgePanel.tsx` — hiển thị hàng đợi, `clearCommQueue` |
 | 4.3 | Pipeline log (data/intelligence/communication) | [x] | Badge màu trên dashboard, max 80 dòng |
 | 4.4 | Gửi mobile / push thật | [ ] | Chưa có channel 1-1 |
 | 4.5 | OS notification (Tauri) | [ ] | IPC demo chỉ `app_ping` |
@@ -160,7 +168,7 @@
 | 5.2.1 | Chặn invoke trên browser thuần | [x] | Báo lỗi rõ — cần `desktop:dev` |
 | 5.2.2 | Tải full board (universe + chunk) | [x] | `loadVpsFullBoard` |
 | 5.2.3 | Cập nhật giá subset (portfolio) | [x] | `fetchVpsStockData` |
-| 5.2.4 | Chart từ histdatafeed | [ ] | Command có, UI chưa |
+| 5.2.4 | Chart từ histdatafeed | [x] | `fetchChartBars` + cache session; TradingView datafeed legacy API |
 
 ### 5.3 Luồng tin tức
 
@@ -168,7 +176,7 @@
 |---|------|------------|
 | 5.3.1 | Demo crawl → newsLinks | [x] |
 | 5.3.2 | Import bulk → merge + log data | [x] |
-| 5.3.3 | Tin → intelligence (liên kết mã) | [ ] |
+| 5.3.3 | Tin → intelligence (liên kết mã) | [~] | Lọc tin theo mã PF trên UI; chưa rule insight từ tin |
 
 ---
 
@@ -178,16 +186,21 @@
 
 | # | Thành phần | Trạng thái | File |
 |---|------------|------------|------|
-| 6.1.1 | Header + badge WS | [x] | `DemoDashboard.tsx` |
-| 6.1.2 | Theme Sáng / Tối / Auto | [x] | `ThemeToggle`, `ThemeProvider` |
+| 6.1.1 | Header + badge WS | [x] | Toolbar `fb-toolbar-btn`, WS font-data |
+| 6.1.1b | AppNav thống nhất | [x] | `AppNav.tsx` — Bảng giá / Danh mục / BCTC / Crawl |
+| 6.1.2 | Theme Sáng / Tối / Auto | [x] | `ThemeToggle` trên AppNav |
 | 6.1.3 | Lưới bảng giá + chi tiết mã (~1.42:0.4) | [x] | `MarketBoardTable`, `SymbolDetailPanel` |
 | 6.1.4 | Bảng giá VPS (full HOSE-style) | [x] | `VpsPriceBoard.tsx` |
-| 6.1.5 | Chỉ báo MA20, RSI (mock series) | [x] | `ChartsIndicatorsPanel`, `chart-mock.ts` |
+| 6.1.5 | Chỉ báo MA20, RSI (OHLCV thật) | [x] | `ChartsIndicatorsPanel`, `ChartAnalysisPanel`, `chart/indicators.ts` |
+| 6.1.5b | TradingView Advanced Charts (mặc định) | [x] | `TradingViewChart`, dark UI, measure toolbar, `load-tradingview.ts` |
+| 6.1.5c | Cache OHLCV — 1 API call / mã | [x] | `loadChartBarsFull` trong `bars.ts` |
 | 6.1.6 | Panel tin | [x] | `NewsClipPanel.tsx` |
 | 6.1.7 | Pipeline log | [x] | Trong dashboard |
+| 6.1.7b | Mobile bridge panel | [x] | `MobileBridgePanel.tsx` dưới chart/tin |
 | 6.1.8 | Nút điều khiển demo | [x] | Tick, auto, import portfolio, tin, VPS |
 | 6.1.9 | Link sang `/insight` | [x] | "Demo sản phẩm" |
 | 6.1.10 | Ping Rust (IPC) | [x] | `DesktopPing.tsx` |
+| 6.1.12 | Risk panel + toast dashboard | [x] | `DashboardRiskPanel`, toast `risk` khi WARN/HALT |
 
 ### 6.2 Trang FinRAG `/bctc` — AI đọc báo cáo tài chính
 
@@ -210,7 +223,7 @@
 | 6.2.6 | Right rail | [x] | `FireAntRightRail.tsx` |
 | 6.2.7 | Đa danh mục (own / client / scenario) | [x] | `demoBooks.ts` |
 | 6.2.8 | Tự tải VPS board khi Tauri | [x] | `useEffect` trong shell |
-| 6.2.9 | Insight feed gắn đúng sổ đang chọn | [~] | Hiển thị insights Redux chung |
+| 6.2.9 | Insight feed gắn đúng sổ đang chọn | [x] | `bookId` trên Insight, `filterInsightsForBook`, snapshot khi đổi sổ |
 | 6.2.10 | Chart / order book thật | [ ] | Chưa |
 
 ### 6.4 VPS Price Board — tính năng UI
@@ -236,6 +249,7 @@
 | 7.3 | VPS module Rust | [x] | `src-tauri/src/vps.rs` |
 | 7.4 | Header curl khớp DevTools | [x] | Doc `docs/vps-api-curl.md` |
 | 7.5 | `scripts/tauri-path.js` (PATH cargo Windows) | [x] | README ghi chú |
+| 7.5b | Auto port dev + Tauri `devUrl` | [x] | `scripts/desktop-dev.mjs` merge `tauri.dev.conf.json`; `.dev-port` |
 | 7.6 | File system / notification OS | [ ] | Backlog |
 | 7.7 | Build installer | [~] | Script có; phụ thuộc môi trường VS Build Tools |
 
@@ -245,8 +259,8 @@
 
 | Thư mục / file | Mục đích | Đã tích hợp app? |
 |----------------|----------|------------------|
-| `test_data_inday/hose_data.js` | Snapshot intraday HOSE (~25k dòng) | **Chưa** |
-| `test_data_inday/vn30_data.js` | Snapshot VN30 | **Chưa** |
+| `test_data_inday/hose_data.js` | Snapshot intraday HOSE (403 mã) | **Có** → `public/data/inday/hose.json` |
+| `test_data_inday/vn30_data.js` | Snapshot VN30 (30 mã) | **Có** → `public/data/inday/vn30.json` |
 | `data_config/stock.js` | Metadata mã (~21k dòng) | **Chưa** |
 | `data_config/market.js` | Chỉ số / sàn | **Chưa** |
 | `docs/vps-api-curl.md` | Đối chiếu API VPS ↔ Rust | Tham chiếu dev |
@@ -267,16 +281,17 @@
 - [ ] Smart alert theo ngữ cảnh (đầy đủ — hiện mới rule demo)
 - [ ] PC ↔ Mobile channel thật
 - [ ] Broker: auto report, trigger call
-- [ ] Risk dashboard nâng cao (expected loss, rebalance)
+- [~] Risk dashboard nâng cao (expected loss, rebalance) | VaR/CVaR/rebalance hints trên `/insight`; chưa kill-switch Tauri |
 
 ### 9.2 Ưu tiên gần (đề xuất)
 
-1. [ ] Gắn `vps_get_tradingview_history` → chart thật thay `chart-mock`
-2. [ ] Import `test_data_inday` làm mock offline / test
-3. [ ] Insight pipeline theo `activeBook` trên `/insight`
-4. [ ] Poll VPS định kỳ hoặc WS nếu có nguồn
-5. [ ] Persist cache bảng VPS (optional SQLite)
-6. [ ] Tauri notification khi insight severity `risk`
+1. [x] Áp dụng `.font-data` + `fb-board` lên `VpsPriceBoard`, `AllStocksBoard`
+2. [x] Gắn `vps_get_tradingview_history` → chart thật thay `chart-mock`
+3. [x] Import `test_data_inday` làm mock offline / test
+4. [x] Insight pipeline theo `activeBook` trên `/insight`
+5. [ ] Poll VPS định kỳ hoặc WS nếu có nguồn
+6. [ ] Persist cache bảng VPS (optional SQLite)
+7. [ ] Tauri notification khi insight severity `risk`
 
 ---
 
@@ -287,38 +302,44 @@
 | 10.1 | **CORS** — browser không gọi trực tiếp VPS | Cao | Giải bằng Rust/Tauri; web thuần không có giá VPS |
 | 10.2 | **Tải full universe** — hàng nghìn mã, nhiều request chunk | Trung bình | Chunk 42; chậm lần đầu; cần cache / lazy load |
 | 10.3 | **API VPS không chính thức** — header Origin/Referer, có thể đổi | Trung bình | Giữ `vps-api-curl.md`; theo dõi breaking change |
-| 10.4 | **Next static export** — không `next start` | Thấp | Đúng mô hình Tauri; SSR/API routes hạn chế |
+| 10.4 | **Next static export** — không `next start` | Thấp | Export chỉ lúc `npm run build`; dev tắt export (fix bootstrap script) |
 | 10.5 | **Windows build Rust** — thiếu `link.exe` | Trung bình | Cần VS Build Tools; doc trong README |
 | 10.6 | **Hai mặt sản phẩm** — dashboard bảng giá vs insight “không phải broker app” | Trung bình | `/` demo data; `/insight` demo positioning — cần narrative rõ khi demo khách |
-| 10.7 | **Insight vs danh mục đa sổ** — pipeline một Redux `positions` | Trung bình | Refactor: evaluate theo book đang chọn |
+| 10.7 | **Insight vs danh mục đa sổ** — pipeline một Redux `positions` | Thấp | Đã refactor: `activeBookId`, `resolveBookContext`, giá scenario HPG |
 | 10.8 | **Dữ liệu offline lớn** — `stock.js` 21k dòng chưa dùng | Thấp | Cân nhắc JSON gzip / lazy import / chỉ subset |
 | 10.9 | **Không realtime VPS** — giá snapshot | Trung bình | UX “bảng giá” vs “insight timing” chưa khớp spec realtime |
 | 10.10 | **AI layer** — chưa có backend bảo mật API key | — | Blocker cho tóm tắt tin / NL insight |
+| 10.11 | **Tailwind/CSS 404** — cache `.next` hỏng | Thấp | Xóa `.next` + restart dev; mở rộng `tailwind.config` content `./src/**/*` |
+| 10.12 | **Port 3000 bận** — Tauri trỏ sai URL | Thấp | Đã fix: `pick-port` + overlay `devUrl`; ghi `.dev-port` |
 
 ---
 
 ## 11. Cách chạy & kiểm tra nhanh
 
 ```bash
-# Web
-npm install && npm run dev          # http://localhost:3000
+# Web (tự chọn port trống từ 3000 — xem URL in ra terminal / file .dev-port)
+npm install && npm run dev
 
 # WS demo (terminal khác)
 npm run demo-server                 # ws://127.0.0.1:3456
 
-# Desktop + VPS
+# Desktop + VPS (port Next và Tauri devUrl đồng bộ tự động)
 npm run desktop:dev               # Cần Rust + Tauri
+
+# Nếu CSS/Tailwind không load: pkill -f "next dev"; rm -rf .next && npm run dev
 ```
 
 **Checklist smoke test:**
 
 - [ ] F5 — portfolio/tin còn (`localStorage`)
-- [ ] Tick → log 3 layer + toast
+- [ ] Tick → log 3 layer + toast + **mobile bridge panel**
 - [ ] Bật auto ticker
 - [ ] `demo-server` → badge WS xanh, tick từ WS
 - [ ] Desktop: Giá VPS / Tải bảng VPS
 - [ ] `/insight` — đổi sổ, xem risk score, scenario HPG
 - [ ] Import tin bulk + copy link
+- [ ] Lọc tin theo PF + insight có dòng AI stub
+- [ ] `desktop:dev` khi port 3000 bận — app vẫn mở đúng port
 
 ---
 
@@ -331,7 +352,27 @@ npm run desktop:dev               # Cần Rust + Tauri
 | Gần đây | **Tauri + VPS Rust** (3 endpoint); bảng giá full |
 | Gần đây | Trang **`/insight`** FireAnt-style, đa danh mục demo |
 | Gần đây | Watchlist, filter sàn/ngành trên VPS board |
-| Chưa commit (git) | Nhiều file mới VPS/insight — xem `git status` |
+| Gần đây | **FinRAG `/bctc`**, TradingView/Lightweight chart, SQLite stocks |
+| **30/05/2026** | **Mobile bridge panel**, AI stub UI, lọc tin theo PF |
+| **30/05/2026** | Fix **Next bootstrap** (export chỉ production), **Tailwind/cache `.next`** |
+| **30/05/2026** | **Auto port** (`scripts/next-dev.mjs`, `desktop-dev.mjs`) + sync Tauri `devUrl` |
+| **30/05/2026** | **design-taste-frontend** skill + `finance-buddy-design`, AppNav, token CSS cockpit |
+| **30/05/2026** | **Chart OHLCV thật** — `ChartsIndicatorsPanel` gọi `fetchChartBars` (VPS/SQLite/JSON), xóa `chart-mock.ts` |
+| **30/05/2026** | **Inday offline** — `test_data_inday` → JSON, `loadIndayBoard`, nút HOSE/VN30 trên dashboard |
+| **30/05/2026** | **Insight theo sổ** — `activeBookId`, pipeline book-scoped, snapshot khi đổi sổ `/insight` |
+| **31/05/2026** | **Merge `main_macos`** — risk engine, insight by book, inday JSON, AppNav, auto port |
+| **31/05/2026** | **TradingView** — legacy getBars fix, session cache, TA signal panel, script loader |
+
+### 9.3 Có thể phát triển tiếp (sau merge)
+
+1. [ ] FinRAG: upload PDF thật, seed corpus BCTC, env `GEMINI_API_KEY` trong Tauri
+2. [ ] Poll VPS định kỳ / websocket giá (tránh snapshot cũ)
+3. [ ] Persist cache bảng VPS + chart vào SQLite
+4. [ ] Tauri OS notification khi insight `risk` / kill-switch
+5. [ ] MACD/Bollinger trên chart; disclaimer tín hiệu TA trên UI
+6. [ ] AI nghiên cứu thị trường + DCF (`docs/ai_plan.md` mục 2–3)
+7. [ ] Import subset `data_config/stock.js` cho metadata ngành
+8. [ ] Mobile bridge gửi push thật (không chỉ queue RAM)
 
 ---
 

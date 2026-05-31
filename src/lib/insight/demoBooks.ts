@@ -39,10 +39,19 @@ export const DEMO_BOOKS: DemoBook[] = [
     id: "scenario-hpg",
     label: "Giả định · HPG −30%",
     role: "scenario",
-    scenarioNote: "Stress: HPG giảm 30% so với giá hiện tại — xem ảnh hưởng tổng danh mục khách B.",
+    scenarioNote:
+      "Stress: HPG giảm 30% so với giá hiện tại — xem ảnh hưởng tổng danh mục khách B.",
     positions: [
       { symbol: "HPG", qty: 500, avgCost: 24 },
       { symbol: "MWG", qty: 80, avgCost: 72 },
     ],
   },
 ];
+
+export function findDemoBook(id: string): DemoBook {
+  return DEMO_BOOKS.find((b) => b.id === id) ?? DEMO_BOOKS[0]!;
+}
+
+export function isDemoBookId(id: string): boolean {
+  return DEMO_BOOKS.some((b) => b.id === id);
+}

@@ -1,6 +1,16 @@
-/** Chỉ báo kỹ thuật tính từ OHLCV thật (fetchChartBars). */
+/**
+ * Chỉ báo kỹ thuật — dùng chung ChartsIndicatorsPanel + ChartAnalysisPanel.
+ * SMA/RSI: quy ước TA phổ biến (Wilder RSI 14).
+ */
 
 import type { ChartBar } from "./bars";
+
+export type IndicatorChartPoint = {
+  t: string;
+  close: number;
+  ma20?: number;
+  ma50?: number;
+};
 
 export type AnalysisSignal = "bullish" | "bearish" | "neutral";
 
@@ -20,24 +30,68 @@ export type BarAnalysis = {
   summary: string;
 };
 
-export function sma(values: number[], period: number): number | null {
-  if (values.length < period) return null;
-  const slice = values.slice(-period);
-  return +(slice.reduce((a, b) => a + b, 0) / period).toFixed(4);
+/** SMA series (toàn bộ mảng). */
+export function sma(values: number[], period: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < values.length; i++) {
+    if (i < period - 1) {
+      out.push(values[i]!);
+      continue;
+    }
+    let s = 0;
+    for (let j = 0; j < period; j++) s += values[i - j]!;
+    out.push(+(s / period).toFixed(3));
+  }
+  return out;
 }
 
-export function rsi(closes: number[], period = 14): number | null {
-  if (closes.length < period + 1) return null;
+export function smaLast(values: number[], period: number): number | null {
+  const series = sma(values, period);
+  if (!series.length) return null;
+  return series[series.length - 1] ?? null;
+}
+
+export function simpleRsi(closes: number[], period = 14): number {
+  if (closes.length < 2) return 50;
+  const n = Math.min(period, closes.length - 1);
   let gains = 0;
   let losses = 0;
-  for (let i = closes.length - period; i < closes.length; i++) {
+  for (let i = closes.length - n; i < closes.length; i++) {
     const d = closes[i]! - closes[i - 1]!;
     if (d >= 0) gains += d;
     else losses -= d;
   }
-  if (losses === 0) return gains > 0 ? 100 : 50;
+  if (losses === 0) return gains > 0 ? 72 : 50;
   const rs = gains / losses;
   return +(100 - 100 / (1 + rs)).toFixed(1);
+}
+
+export function rsi(closes: number[], period = 14): number | null {
+  if (closes.length < period + 1) return null;
+  return simpleRsi(closes, period);
+}
+
+export function barsToIndicatorChart(
+  timesMs: number[],
+  closes: number[],
+  displayLimit = 56,
+): IndicatorChartPoint[] {
+  const ma20 = sma(closes, 20);
+  const ma50 = sma(closes, 50);
+  const start = Math.max(0, closes.length - displayLimit);
+  const rows: IndicatorChartPoint[] = [];
+  for (let i = start; i < closes.length; i++) {
+    rows.push({
+      t: new Date(timesMs[i]!).toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+      }),
+      close: closes[i]!,
+      ma20: ma20[i],
+      ma50: ma50[i],
+    });
+  }
+  return rows;
 }
 
 function deriveSignal(
@@ -84,6 +138,7 @@ function deriveSignal(
   return { signal, summary };
 }
 
+/** Phân tích tín hiệu demo từ OHLCV thật (heuristic nội bộ, không phải khuyến nghị đầu tư). */
 export function analyzeBars(symbol: string, bars: ChartBar[]): BarAnalysis {
   const sorted = [...bars].sort((a, b) => a.time - b.time);
   const last = sorted.at(-1) ?? null;
@@ -91,10 +146,10 @@ export function analyzeBars(symbol: string, bars: ChartBar[]): BarAnalysis {
   const closes = sorted.map((b) => b.close);
   const volumes = sorted.map((b) => b.volume);
 
-  const ma20 = sma(closes, 20);
-  const ma50 = sma(closes, 50);
+  const ma20 = smaLast(closes, 20);
+  const ma50 = smaLast(closes, 50);
   const rsi14 = rsi(closes, 14);
-  const volumeAvg20 = sma(volumes, 20);
+  const volumeAvg20 = smaLast(volumes, 20);
   const volumeRatio =
     last && volumeAvg20 && volumeAvg20 > 0
       ? +(last.volume / volumeAvg20).toFixed(2)

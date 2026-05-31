@@ -34,14 +34,15 @@ export function mapRowFromVpsRecord(r: Record<string, unknown>): VpsBoardRow | n
     "priorClose",
     "RefPrice",
   ]);
-  const ceiling = pickNum(r, ["c", "ceiling", "maxPrice", "Ceiling", "max"]);
-  const floor = pickNum(r, ["f", "floor", "minPrice", "Floor", "min"]);
+  const ceiling = pickNum(r, ["c", "ceiling", "maxPrice", "Ceiling", "max", "ceilingPrice"]);
+  const floor = pickNum(r, ["f", "floor", "minPrice", "Floor", "min", "floorPrice"]);
   const matchP = pickNum(r, [
     "lastPrice",
     "matchPrice",
     "MatchPrice",
     "price",
     "close",
+    "closePrice",
   ]);
   const matchV = pickNum(r, [
     "lastVolume",
@@ -50,13 +51,14 @@ export function mapRowFromVpsRecord(r: Record<string, unknown>): VpsBoardRow | n
     "lastQty",
     "matchVolume",
     "MatchVol",
+    "closeVol",
   ]);
 
   const changeAbs =
     pickNum(r, ["change", "Change", "priceChange", "diff"]) ||
     (ref > 0 && matchP > 0 ? matchP - ref : 0);
   const changePct =
-    pickNum(r, ["changePc", "changePct", "ChangePc", "percent"]) ||
+    pickNum(r, ["changePc", "changePct", "ChangePc", "percent", "percentPriceChange"]) ||
     (ref > 0 ? ((matchP - ref) / ref) * 100 : 0);
 
   return {
@@ -71,40 +73,43 @@ export function mapRowFromVpsRecord(r: Record<string, unknown>): VpsBoardRow | n
       "lotTotal",
       "LotTotal",
       "accumulatedVolume",
+      "totalTradingVolume",
     ]),
-    bidP3: pickNum(r, ["best3Bid", "g3", "buyPrice3", "bp3", "bid3"]),
-    bidV3: pickNum(r, ["best3BidVol", "g3Volumn", "buyVolume3", "bv3"]),
-    bidP2: pickNum(r, ["best2Bid", "g2", "buyPrice2", "bp2"]),
-    bidV2: pickNum(r, ["best2BidVol", "g2Volumn", "buyVolume2", "bv2"]),
-    bidP1: pickNum(r, ["best1Bid", "g1", "buyPrice1", "bp1", "bid1"]),
+    bidP3: pickNum(r, ["best3Bid", "g3", "buyPrice3", "bp3", "bid3", "bidPrice3"]),
+    bidV3: pickNum(r, ["best3BidVol", "g3Volumn", "buyVolume3", "bv3", "bidVol3"]),
+    bidP2: pickNum(r, ["best2Bid", "g2", "buyPrice2", "bp2", "bidPrice2"]),
+    bidV2: pickNum(r, ["best2BidVol", "g2Volumn", "buyVolume2", "bv2", "bidVol2"]),
+    bidP1: pickNum(r, ["best1Bid", "g1", "buyPrice1", "bp1", "bid1", "bidPrice1"]),
     bidV1: pickNum(r, [
       "best1BidVol",
       "g1Volumn",
       "buyVolume1",
       "bv1",
       "bid1Volume",
+      "bidVol1",
     ]),
     matchP,
     matchV,
     changeAbs,
     changePct,
-    askP1: pickNum(r, ["best1Offer", "s1", "sellPrice1", "sp1", "ask1"]),
+    askP1: pickNum(r, ["best1Offer", "s1", "sellPrice1", "sp1", "ask1", "askPrice1"]),
     askV1: pickNum(r, [
       "best1OfferVol",
       "s1Volumn",
       "sellVolume1",
       "sv1",
       "ask1Volume",
+      "askVol1",
     ]),
-    askP2: pickNum(r, ["best2Offer", "s2", "sellPrice2"]),
-    askV2: pickNum(r, ["best2OfferVol", "s2Volumn", "sellVolume2"]),
-    askP3: pickNum(r, ["best3Offer", "s3", "sellPrice3"]),
-    askV3: pickNum(r, ["best3OfferVol", "s3Volumn", "sellVolume3"]),
+    askP2: pickNum(r, ["best2Offer", "s2", "sellPrice2", "askPrice2"]),
+    askV2: pickNum(r, ["best2OfferVol", "s2Volumn", "sellVolume2", "askVol2"]),
+    askP3: pickNum(r, ["best3Offer", "s3", "sellPrice3", "askPrice3"]),
+    askV3: pickNum(r, ["best3OfferVol", "s3Volumn", "sellVolume3", "askVol3"]),
     high: pickNum(r, ["highPrice", "high", "High", "maxPriceIntraday"]),
     low: pickNum(r, ["lowPrice", "low", "Low", "minPriceIntraday"]),
     avg: pickNum(r, ["avePrice", "averagePrice", "avgPrice", "ar", "tb"]),
-    frBuy: pickNum(r, ["frBuyVol", "fBVol", "foreignBuy", "nMua"]),
-    frSell: pickNum(r, ["frSellVol", "fSVol", "foreignSell", "nBan"]),
+    frBuy: pickNum(r, ["frBuyVol", "fBVol", "foreignBuy", "nMua", "foreignBuyVolume"]),
+    frSell: pickNum(r, ["frSellVol", "fSVol", "foreignSell", "nBan", "foreignSellVolume"]),
     frRoom: pickNum(r, ["frRoom", "nRoom", "foreignRoom", "nnRoom"]),
   };
 }

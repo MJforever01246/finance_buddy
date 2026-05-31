@@ -3,7 +3,8 @@
 import { useState } from "react";
 import type { Insight } from "@/lib/layers/types";
 import { fmtVi } from "@/lib/vps/formatVi";
-import type { DemoBook } from "../demoBooks";
+import type { DemoBook } from "@/lib/insight/demoBooks";
+import { PortfolioRiskPanel } from "../PortfolioRiskPanel";
 
 type Tab = "tong-hop" | "insight" | "risk" | "vi-the";
 
@@ -17,6 +18,9 @@ export function FireAntBookPanel({
   weights,
   insights,
   scenarioNote,
+  positions,
+  prices,
+  peakEquity,
 }: {
   book: DemoBook;
   market: number;
@@ -27,6 +31,9 @@ export function FireAntBookPanel({
   weights: { symbol: string; pct: number }[];
   insights: Insight[];
   scenarioNote?: string;
+  positions: import("@/lib/layers/types").Position[];
+  prices: Record<string, number>;
+  peakEquity: number;
 }) {
   const [tab, setTab] = useState<Tab>("tong-hop");
   const up = pnlPct >= 0;
@@ -104,22 +111,14 @@ export function FireAntBookPanel({
           </ul>
         )}
         {tab === "risk" && (
-          <div className="space-y-2">
-            {weights.map((w) => (
-              <div key={w.symbol}>
-                <div className="flex justify-between text-[11px]">
-                  <span>{w.symbol}</span>
-                  <span className="tabular-nums">{w.pct.toFixed(1)}%</span>
-                </div>
-                <div className="mt-0.5 h-1 rounded-full bg-black/30">
-                  <div
-                    className={`h-full rounded-full ${w.symbol === maxSymbol && maxPct >= 35 ? "bg-rose-500" : "bg-[var(--fa-accent)]"}`}
-                    style={{ width: `${w.pct}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <PortfolioRiskPanel
+            positions={positions}
+            prices={prices}
+            peakEquity={peakEquity}
+            maxSymbol={maxSymbol}
+            maxPct={maxPct}
+            weights={weights}
+          />
         )}
         {tab === "vi-the" && (
           <table className="w-full text-[10px]">

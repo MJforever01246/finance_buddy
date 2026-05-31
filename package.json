@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/next-dev.mjs",
     "build": "next build",
     "lint": "next lint",
     "demo-server": "node server/demo-ws.mjs",
     "tauri": "tauri",
-    "desktop:dev": "node scripts/tauri-path.js dev",
-    "desktop:build": "node scripts/tauri-path.js build"
+    "desktop:dev": "node scripts/desktop-dev.mjs",
+    "desktop:build": "node scripts/tauri-path.js build",
+    "inday:json": "node scripts/convert-inday-to-json.mjs"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.5.0",

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Stock } from "@/lib/desktop/db";
 import { getStockBySymbol } from "@/lib/desktop/db";
 import { metricsSnapshot } from "@/lib/orchestration/pipeline";
+import { summarizeInsightForAiStub } from "@/lib/layers/intelligence";
 import { useAppDispatch, useAppSelector } from "@/stores/hooks";
 import { addSymbolToWatchlist } from "@/stores/demoSlice";
 
@@ -12,6 +13,7 @@ export function SymbolDetailPanel() {
   const prices = useAppSelector((s) => s.demo.prices);
   const positions = useAppSelector((s) => s.demo.positions);
   const ticks = useAppSelector((s) => s.demo.ticks);
+  const activeBookId = useAppSelector((s) => s.demo.activeBookId);
   const insights = useAppSelector((s) => s.demo.insights);
   const selectedSymbol = useAppSelector((s) => s.demo.selectedSymbol);
   const savedWatchlists = useAppSelector((s) => s.demo.savedWatchlists);
@@ -44,9 +46,15 @@ export function SymbolDetailPanel() {
   const symInsights = useMemo(
     () =>
       selectedSymbol
-        ? insights.filter((i) => i.relatedSymbols.includes(selectedSymbol)).slice(0, 6)
+        ? insights
+            .filter(
+              (i) =>
+                i.relatedSymbols.includes(selectedSymbol) &&
+                (!i.bookId || i.bookId === activeBookId),
+            )
+            .slice(0, 6)
         : [],
-    [insights, selectedSymbol],
+    [insights, selectedSymbol, activeBookId],
   );
 
   const portMetrics = useMemo(
@@ -93,7 +101,7 @@ export function SymbolDetailPanel() {
           )}
         </div>
         <div className="text-right font-mono tabular-nums">
-          <div className="text-lg font-semibold">{px.toFixed(2)}</div>
+          <div className="text-lg font-semibold font-data">{px.toFixed(2)}</div>
           {lastTick ? (
             <div
               className={`text-sm font-medium ${
@@ -235,7 +243,11 @@ export function SymbolDetailPanel() {
               key={i.id}
               className="rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-2 leading-snug text-[var(--text)]"
             >
-              {i.title}
+              <p className="font-medium">{i.title}</p>
+              <p className="mt-1 text-[10px] text-[var(--muted)]">{i.detail}</p>
+              <p className="mt-1.5 rounded bg-amber-500/10 px-1.5 py-1 text-[10px] italic text-amber-900 dark:text-amber-200">
+                {summarizeInsightForAiStub(i)}
+              </p>
             </li>
           ))}
           {!symInsights.length ? (
